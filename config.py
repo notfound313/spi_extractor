@@ -4,30 +4,27 @@ OUTPUT_DIR = "output"
 
 ISLAND_PROVINCES: dict[str, list[str]] = {
     "JAWA": [
-        "DKI Jakarta", "Jawa Barat", "Jawa Tengah",
-        "DI Yogyakarta", "Jawa Timur", "Banten",
-        "Jakarta Raya", "Yogyakarta",
+        "DKI JAKARTA", "JAWA BARAT", "JAWA TENGAH", 
+        "DAERAH ISTIMEWA YOGYAKARTA", "JAWA TIMUR", "BANTEN"
     ],
-    "SUMATRA": [
-        "Aceh", "Sumatera Utara", "Sumatera Barat", "Riau",
-        "Jambi", "Sumatera Selatan", "Bengkulu", "Lampung",
-        "Kepulauan Bangka Belitung", "Kepulauan Riau", "Sumatra Utara",
+    "SUMATRA": [        
+        "ACEH", "SUMATERA UTARA", "SUMATERA BARAT", "RIAU", "JAMBI", 
+        "SUMATERA SELATAN", "BENGKULU", "LAMPUNG", 
+        "KEPULAUAN BANGKA BELITUNG", "KEPULAUAN RIAU"
     ],
     "KALIMANTAN": [
-        "Kalimantan Barat", "Kalimantan Tengah", "Kalimantan Selatan",
-        "Kalimantan Timur", "Kalimantan Utara",
+        "KALIMANTAN BARAT", "KALIMANTAN TENGAH", "KALIMANTAN SELATAN", 
+        "KALIMANTAN TIMUR", "KALIMANTAN UTARA"
     ],
     "SULAWESI": [
-        "Sulawesi Utara", "Sulawesi Tengah", "Sulawesi Selatan",
-        "Sulawesi Tenggara", "Gorontalo", "Sulawesi Barat",
+        "SULAWESI UTARA", "SULAWESI TENGAH", "SULAWESI SELATAN", 
+        "SULAWESI TENGGARA", "GORONTALO", "SULAWESI BARAT"
     ],
     "PAPUA": [
-        "Papua", "Papua Barat", "Papua Selatan", "Papua Tengah",
-        "Papua Pegunungan", "Papua Barat Daya", "Maluku",
-        "Maluku Utara", "Irian Jaya Barat",
+        "PAPUA BARAT", "PAPUA","MALUKU", "MALUKU UTARA"
     ],
     "NUSA TENGGARA": [
-        "Nusa Tenggara Barat", "Nusa Tenggara Timur", "Bali", "NTB", "NTT",
+        "BALI", "NUSATENGGARA BARAT", "NUSATENGGARA TIMUR"
     ],
 }
 
