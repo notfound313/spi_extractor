@@ -8,9 +8,9 @@ ISLAND_PROVINCES: dict[str, list[str]] = {
         "DAERAH ISTIMEWA YOGYAKARTA", "JAWA TIMUR", "BANTEN"
     ],
     "SUMATRA": [        
-        "ACEH", "SUMATERA UTARA", "SUMATERA BARAT", "RIAU", "JAMBI", 
+        "DI. ACEH", "SUMATERA UTARA", "SUMATERA BARAT", "RIAU", "JAMBI", 
         "SUMATERA SELATAN", "BENGKULU", "LAMPUNG", 
-        "KEPULAUAN BANGKA BELITUNG", "KEPULAUAN RIAU"
+        "BANGKA BELITUNG", "KEPULAUAN RIAU"
     ],
     "KALIMANTAN": [
         "KALIMANTAN BARAT", "KALIMANTAN TENGAH", "KALIMANTAN SELATAN", 
@@ -30,40 +30,41 @@ ISLAND_PROVINCES: dict[str, list[str]] = {
 
 ISLAND_GEOREF: dict[str, dict] = {
     "JAWA": {
-        "lon": {"px1": 50, "lon1": 105.10, "px2": 550, "lon2": 114.60},
-        "lat": {"py1": 30, "lat1": -5.80,  "py2": 230, "lat2": -8.80},
+        "lon": {"px1": 50, "lon1": 105.2, "px2": 550, "lon2": 115.9},
+        "lat": {"py1": 30, "lat1": -5.7,  "py2": 230, "lat2": -8.80},
         "px_min": 40, "py_min": 20,
-        "bbox_geo": [105.1, -8.8, 114.6, -5.8],
+        "bbox_geo": [105.2,-8.8,115.9,-5.7],
     },
     "SUMATRA": {
-        "lon": {"px1": 50, "lon1": 95.00,  "px2": 550, "lon2": 109.10},
-        "lat": {"py1": 30, "lat1": 6.10,   "py2": 400, "lat2": -6.00},
+        "lon": {"px1": 50, "lon1": 95.2,  "px2": 550, "lon2": 109.12},
+        "lat": {"py1": 30, "lat1": 5.88,   "py2": 400, "lat2": -5.94},
         "px_min": 10, "py_min": 20,
-        "bbox_geo": [95.0, -6.0, 109.1, 6.1],
+        "bbox_geo": [ 95.2, -5.9, 109.1, 5.9],
     },
     "KALIMANTAN": {
-        "lon": {"px1": 50, "lon1": 108.80, "px2": 550, "lon2": 119.20},
-        "lat": {"py1": 30, "lat1": 4.40,   "py2": 420, "lat2": -4.30},
+        "lon": {"px1": 50, "lon1": 108.69, "px2": 550, "lon2": 118.99},
+        "lat": {"py1": 30, "lat1": 4.41,   "py2": 420, "lat2": -4.7},
         "px_min": 15, "py_min": 40,
-        "bbox_geo": [108.8, -4.3, 119.2, 4.4],
+        "bbox_geo": [108.7, -4.7, 119.0, 4.4],
     },
     "SULAWESI": {
-        "lon": {"px1": 50, "lon1": 118.70, "px2": 450, "lon2": 127.20},
-        "lat": {"py1": 30, "lat1": 2.10,   "py2": 380, "lat2": -6.80},
+        "lon": {"px1": 50, "lon1": 117.66, "px2": 450, "lon2": 126.91},
+        "lat": {"py1": 30, "lat1": 4.56,   "py2": 380, "lat2": -7.49},
         "px_min": 20, "py_min": 20,
-        "bbox_geo": [118.7, -6.8, 127.2, 2.1],
+        "bbox_geo": [117.7, -7.5, 126.9, 4.6],
     },
     "PAPUA": {
-        "lon": {"px1": 50, "lon1": 130.00, "px2": 550, "lon2": 141.05},
-        "lat": {"py1": 30, "lat1": 0.70,   "py2": 400, "lat2": -9.20},
+        "lon": {"px1": 50, "lon1": 124.3, "px2": 550, "lon2": 141.01},
+        "lat": {"py1": 30, "lat1": 2.65,   "py2": 400, "lat2": -9.12},
         "px_min": 40, "py_min": 20,
-        "bbox_geo": [130.0, -9.2, 141.1, 0.7],
+        "bbox_geo": [124.3, -9.1, 141.0, 2.6]
+],
     },
     "NUSA TENGGARA": {
-        "lon": {"px1": 87, "lon1": 114.43, "px2": 558, "lon2": 127.25},
-        "lat": {"py1": 78, "lat1": -8.06,  "py2": 240, "lat2": -11.01},
+        "lon": {"px1": 87, "lon1": 114.43, "px2": 558, "lon2": 125.64},
+        "lat": {"py1": 78, "lat1": -8.06,  "py2": 240, "lat2": -10.92},
         "px_min": 18, "py_min": 72,
-        "bbox_geo": [114.4, -11.1, 127.3, -8.0],
+        "bbox_geo": [114.4, -10.9,  125.6, -8.1],
     },
 }
 
