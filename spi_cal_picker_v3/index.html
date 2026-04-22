@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:transparent;overflow:hidden}
+#wrap{position:relative;display:inline-block;width:100%}
+img#map{width:100%;display:block;cursor:crosshair;user-select:none;-webkit-user-drag:none}
+#badge{
+  position:absolute;top:8px;left:8px;
+  background:rgba(0,0,0,.78);color:#e6edf3;
+  padding:5px 13px;border-radius:5px;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;
+  pointer-events:none;letter-spacing:.06em;
+  border:1px solid rgba(255,255,255,.15);
+}
+#hint{
+  position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  padding:6px 18px;border-radius:5px;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;
+  pointer-events:none;white-space:nowrap;
+  border:1px solid rgba(255,255,255,.2);
+}
+.h1{background:rgba(230,57,70,.88);color:#fff}
+.h2{background:rgba(33,150,243,.88);color:#fff}
+.hd{background:rgba(40,167,69,.88);color:#fff}
+.chl,.chv{position:absolute;background:rgba(255,255,255,.18);pointer-events:none}
+.chl{height:1px;left:0;right:0}
+.chv{width:1px;top:0;bottom:0}
+.dot{
+  position:absolute;width:26px;height:26px;border-radius:50%;
+  border:2.5px solid #fff;transform:translate(-50%,-50%);
+  pointer-events:none;display:flex;align-items:center;justify-content:center;
+  font-family:monospace;font-size:11px;font-weight:700;color:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.6);
+}
+.d1{background:#e63946}
+.d2{background:#2196f3}
+.dlbl{
+  position:absolute;font-family:monospace;font-size:10px;
+  color:#fff;pointer-events:none;
+  background:rgba(0,0,0,.65);padding:2px 7px;border-radius:3px;
+  white-space:nowrap;
+}
+.guide{
+  position:absolute;width:22px;height:22px;border-radius:50%;
+  border:2px dashed rgba(255,255,255,.45);transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+.glbl{
+  position:absolute;font-family:monospace;font-size:9px;
+  color:rgba(255,255,255,.6);pointer-events:none;
+  background:rgba(0,0,0,.5);padding:2px 5px;border-radius:3px;
+  white-space:nowrap;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <img id="map" src="" alt="" draggable="false"/>
+  <div id="badge">X: —  |  Y: —</div>
+  <div id="hint" class="h1">Klik Titik 1 — Sudut Kiri Atas Peta</div>
+  <div class="chl" id="chH" style="display:none"></div>
+  <div class="chv" id="chV" style="display:none"></div>
+</div>
+<script src="https://unpkg.com/streamlit-component-lib@2.0.0/dist/index.js"></script>
+<script>
+const img   = document.getElementById('map');
+const badge = document.getElementById('badge');
+const hint  = document.getElementById('hint');
+const wrap  = document.getElementById('wrap');
+const chH   = document.getElementById('chH');
+const chV   = document.getElementById('chV');
+let clicks  = [];
+let guidesDrawn = false;
+
+function toPixel(e){
+  const r=img.getBoundingClientRect();
+  return{
+    x:Math.round((e.clientX-r.left)*img.naturalWidth/r.width),
+    y:Math.round((e.clientY-r.top)*img.naturalHeight/r.height),
+    px:(e.clientX-r.left)/r.width*100,
+    py:(e.clientY-r.top)/r.height*100,
+  };
+}
+
+function updateHint(){
+  if(clicks.length===0){hint.textContent='Klik Titik 1 — Sudut Kiri Atas Peta';hint.className='h1';}
+  else if(clicks.length===1){hint.textContent='Klik Titik 2 — Sudut Kanan Bawah Peta';hint.className='h2';}
+  else{hint.textContent='Selesai — 2 titik referensi terekam';hint.className='hd';}
+}
+
+function drawGuides(guides){
+  if(guidesDrawn||!guides||!guides.length)return;
+  guidesDrawn=true;
+  guides.forEach(g=>{
+    const el=document.createElement('div');
+    el.className='guide';
+    el.style.left=g.px+'%';el.style.top=g.py+'%';
+    wrap.appendChild(el);
+    const lbl=document.createElement('div');
+    lbl.className='glbl';
+    lbl.style.left=(g.px+2)+'%';lbl.style.top=(g.py-3.5)+'%';
+    lbl.textContent=g.label;
+    wrap.appendChild(lbl);
+  });
+}
+
+img.addEventListener('mousemove',e=>{
+  const{x,y,px,py}=toPixel(e);
+  badge.textContent=`X: ${x}   |   Y: ${y}`;
+  chH.style.top=py+'%';chV.style.left=px+'%';
+  chH.style.display='block';chV.style.display='block';
+});
+
+img.addEventListener('mouseleave',()=>{
+  badge.textContent='X: —  |  Y: —';
+  chH.style.display='none';chV.style.display='none';
+});
+
+img.addEventListener('click',e=>{
+  if(clicks.length>=2)return;
+  const{x,y,px,py}=toPixel(e);
+  clicks.push({x,y});
+  const n=clicks.length;
+
+  const dot=document.createElement('div');
+  dot.className=`dot d${n}`;
+  dot.style.left=px+'%';dot.style.top=py+'%';
+  dot.textContent=n;
+  wrap.appendChild(dot);
+
+  const lbl=document.createElement('div');
+  lbl.className='dlbl';
+  lbl.style.left=(px+2.5)+'%';lbl.style.top=(py-4)+'%';
+  lbl.textContent=`P${n} (${x}, ${y})`;
+  wrap.appendChild(lbl);
+
+  updateHint();
+  Streamlit.setComponentValue({clicks});
+});
+
+img.addEventListener('load',()=>{
+  setTimeout(()=>Streamlit.setFrameHeight(img.offsetHeight+4),80);
+});
+
+function onRender(e){
+  const args=e.detail.args;
+  if(args.image_src)img.src=args.image_src;
+  if(args.guides)drawGuides(args.guides);
+  Streamlit.setFrameHeight(document.body.scrollHeight+4);
+}
+
+Streamlit.events.addEventListener(Streamlit.RENDER_EVENT,onRender);
+Streamlit.setComponentReady();
+</script>
+</body>
+</html>

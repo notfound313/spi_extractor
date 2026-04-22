@@ -58,7 +58,6 @@ ISLAND_GEOREF: dict[str, dict] = {
         "lat": {"py1": 30, "lat1": 2.65,   "py2": 400, "lat2": -9.12},
         "px_min": 40, "py_min": 20,
         "bbox_geo": [124.3, -9.1, 141.0, 2.6]
-],
     },
     "NUSA TENGGARA": {
         "lon": {"px1": 87, "lon1": 114.43, "px2": 558, "lon2": 125.64},

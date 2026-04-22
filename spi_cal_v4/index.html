@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0e1117;overflow:hidden;font-family:sans-serif}
+  #container{position:relative;width:100%;height:600px;overflow:hidden;border:1px solid #30363d;border-radius:8px;background:#000;cursor:crosshair}
+  #map-wrapper{position:absolute;transform-origin:0 0;transition:transform 0.1s ease-out}
+  img#map{display:block;user-select:none;-webkit-user-drag:none}
+  
+  /* UI Elements */
+  #ui-overlay{position:absolute;top:10px;left:10px;z-index:100;pointer-events:none;display:flex;flex-direction:column;gap:8px}
+  .glass-panel{background:rgba(13,17,23,0.85);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.1);padding:8px 12px;border-radius:6px;color:#e6edf3;font-family:monospace;font-size:12px}
+  
+  #zoom-ctrl{position:absolute;bottom:20px;right:20px;z-index:100;display:flex;flex-direction:column;gap:5px}
+  .btn{background:#21262d;border:1px solid #30363d;color:#c9d1d9;width:36px;height:36px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold}
+  .btn:hover{background:#30363d;color:#58a6ff}
+
+  /* Interactive Markers */
+  .crosshair-h, .crosshair-v{position:absolute;background:rgba(88,166,255,0.4);pointer-events:none;z-index:50}
+  .crosshair-h{height:1px;left:0;right:0}
+  .crosshair-v{width:1px;top:0;bottom:0}
+  
+  .dot{position:absolute;width:30px;height:30px;border-radius:50%;border:3px solid #fff;transform:translate(-50%,-50%);z-index:60;display:flex;align-items:center;justify-content:center;font-weight:bold;box-shadow:0 0 15px rgba(0,0,0,0.5);animation:pulse 1.5s infinite}
+  @keyframes pulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.1)}100%{transform:translate(-50%,-50%) scale(1)}}
+  
+  .dot-label{position:absolute;background:rgba(0,0,0,0.8);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;white-space:nowrap;transform:translate(20px, -20px);border:1px solid rgba(255,255,255,0.2)}
+  
+  #hint-bar{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:100;padding:10px 20px;border-radius:30px;font-weight:bold;letter-spacing:0.5px;box-shadow:0 4px 15px rgba(0,0,0,0.4)}
+  .step1{background:#e63946;color:#fff}.step2{background:#2196f3;color:#fff}.step-done{background:#238636;color:#fff}
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="ui-overlay">
+    <div class="glass-panel" id="coord-badge">X: 0 | Y: 0</div>
+    <div class="glass-panel" id="zoom-badge">Zoom: 100%</div>
+  </div>
+
+  <div id="zoom-ctrl">
+    <button class="btn" onclick="adjustZoom(1.2)">+</button>
+    <button class="btn" onclick="adjustZoom(0.8)">-</button>
+    <button class="btn" onclick="resetView()">⟲</button>
+  </div>
+
+  <div id="hint-bar" class="step1">KLIK TITIK 1: SUDUT KIRI ATAS</div>
+
+  <div id="map-wrapper">
+    <img id="map" src="" draggable="false"/>
+    <div class="crosshair-h" id="ch-h" style="display:none"></div>
+    <div class="crosshair-v" id="ch-v" style="display:none"></div>
+    <div id="markers-layer"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/streamlit-component-lib@2.0.0/dist/index.js"></script>
+<script>
+  const container = document.getElementById('container');
+  const wrapper = document.getElementById('map-wrapper');
+  const img = document.getElementById('map');
+  const coordBadge = document.getElementById('coord-badge');
+  const zoomBadge = document.getElementById('zoom-badge');
+  const hintBar = document.getElementById('hint-bar');
+  const markersLayer = document.getElementById('markers-layer');
+  const chH = document.getElementById('ch-h');
+  const chV = document.getElementById('ch-v');
+
+  let scale = 1;
+  let posX = 0;
+  let posY = 0;
+  let origW = 0;
+  let origH = 0;
+  let clicks = [];
+  let isDragging = false;
+  let startX, startY;
+
+  function updateTransform() {
+    wrapper.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+    zoomBadge.textContent = `Zoom: ${Math.round(scale * 100)}%`;
+  }
+
+  function adjustZoom(factor) {
+    const oldScale = scale;
+    scale = Math.max(0.1, Math.min(10, scale * factor));
+    updateTransform();
+  }
+
+  function resetView() {
+    scale = container.clientWidth / img.naturalWidth;
+    if(scale > 1) scale = 1;
+    posX = 0;
+    posY = 0;
+    updateTransform();
+  }
+
+  container.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 0.9 : 1.1;
+    adjustZoom(factor);
+  });
+
+  // Pan Logic (Right click or Space+Drag)
+  container.addEventListener('mousedown', e => {
+    if (e.button === 2 || e.altKey) {
+      isDragging = true;
+      startX = e.clientX - posX;
+      startY = e.clientY - posY;
+      container.style.cursor = 'grabbing';
+    }
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (isDragging) {
+      posX = e.clientX - startX;
+      posY = e.clientY - startY;
+      updateTransform();
+    }
+
+    // Coordinate tracking
+    const rect = wrapper.getBoundingClientRect();
+    const x = Math.round((e.clientX - rect.left) * (origW / rect.width));
+    const y = Math.round((e.clientY - rect.top) * (origH / rect.height));
+
+    if (x >= 0 && x <= origW && y >= 0 && y <= origH) {
+      coordBadge.textContent = `X: ${x} | Y: ${y}`;
+      chH.style.top = (y * 100 / origH) + '%';
+      chV.style.left = (x * 100 / origW) + '%';
+      chH.style.display = 'block';
+      chV.style.display = 'block';
+    } else {
+      chH.style.display = 'none';
+      chV.style.display = 'none';
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    isDragging = false;
+    container.style.cursor = 'crosshair';
+  });
+
+  container.addEventListener('contextmenu', e => e.preventDefault());
+
+  img.addEventListener('click', e => {
+    if (clicks.length >= 2) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const x = Math.round((e.clientX - rect.left) * (origW / rect.width));
+    const y = Math.round((e.clientY - rect.top) * (origH / rect.height));
+
+    const newClick = { x, y };
+    clicks.push(newClick);
+
+    // Create Visual Marker
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    dot.style.left = (x * 100 / origW) + '%';
+    dot.style.top = (y * 100 / origH) + '%';
+    dot.style.backgroundColor = clicks.length === 1 ? '#e63946' : '#2196f3';
+    dot.innerHTML = clicks.length;
+    
+    const label = document.createElement('div');
+    label.className = 'dot-label';
+    label.textContent = `P${clicks.length}: ${x}, ${y}`;
+    dot.appendChild(label);
+    
+    markersLayer.appendChild(dot);
+
+    if (clicks.length === 1) {
+      hintBar.textContent = 'KLIK TITIK 2: SUDUT KANAN BAWAH';
+      hintBar.className = 'step2';
+    } else {
+      hintBar.textContent = 'KALIBRASI SELESAI';
+      hintBar.className = 'step-done';
+    }
+
+    Streamlit.setComponentValue({ clicks });
+  });
+
+  function onRender(event) {
+    const data = event.detail.args;
+    if (data.image_src && !img.src) {
+      img.src = data.image_src;
+      origW = data.w;
+      origH = data.h;
+      img.onload = () => {
+        resetView();
+        Streamlit.setFrameHeight(600);
+      };
+    }
+  }
+
+  Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, onRender);
+  Streamlit.setComponentReady();
+</script>
+</body>
+</html>

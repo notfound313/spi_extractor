@@ -20,6 +20,7 @@ from classification import build_geojson, classify_grid
 from spatial import download_and_prepare_provinces
 from visualization import build_output_image
 from export import features_to_csv_bytes, features_to_records
+from calibration import render_calibration
 
 
 st.set_page_config(
@@ -32,132 +33,265 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
 
-html, body, [class*="css"] { font-family: 'IBM Plex Sans', sans-serif; }
+html,body,[class*="css"]{font-family:'IBM Plex Sans',sans-serif}
 
-section[data-testid="stSidebar"] { background:#0f1117; border-right:1px solid #1e2130; }
-section[data-testid="stSidebar"] * { color:#c9d1d9 !important; }
+section[data-testid="stSidebar"]{background:#0f1117;border-right:1px solid #1e2130}
+section[data-testid="stSidebar"] *{color:#c9d1d9 !important}
 section[data-testid="stSidebar"] .stSelectbox label,
-section[data-testid="stSidebar"] .stSlider label {
-    font-size:0.78rem; letter-spacing:0.05em;
-    text-transform:uppercase; color:#8b949e !important;
+section[data-testid="stSidebar"] .stSlider label{
+  font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:#8b949e !important}
+
+.main .block-container{padding-top:1.6rem;padding-bottom:2rem;max-width:1200px}
+
+.stat-block{background:#161b22;border:1px solid #21262d;border-radius:6px;padding:.9rem 1.1rem;margin-bottom:.5rem}
+.stat-label{font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.15rem}
+.stat-value{font-family:'IBM Plex Mono',monospace;font-size:1.05rem;color:#e6edf3;font-weight:600}
+.stat-sub{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#6e7681;margin-top:.1rem}
+
+.section-head{
+  font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#8b949e;
+  text-transform:uppercase;letter-spacing:.12em;
+  border-bottom:1px solid #21262d;padding-bottom:.3rem;
+  margin-bottom:.8rem;margin-top:1.4rem;
 }
 
-.main .block-container { padding-top:1.8rem; padding-bottom:2rem; max-width:1200px; }
-
-.stat-block {
-    background:#161b22; border:1px solid #21262d;
-    border-radius:6px; padding:0.9rem 1.1rem; margin-bottom:0.5rem;
+.step-indicator{
+  display:flex;align-items:center;gap:.5rem;
+  font-family:'IBM Plex Mono',monospace;font-size:.75rem;
+  margin-bottom:1.2rem;
 }
-.stat-label {
-    font-family:'IBM Plex Mono',monospace; font-size:0.68rem;
-    color:#8b949e; text-transform:uppercase;
-    letter-spacing:0.08em; margin-bottom:0.15rem;
+.step-pill{
+  padding:4px 14px;border-radius:20px;font-size:.72rem;
+  font-family:'IBM Plex Mono',monospace;
 }
-.stat-value { font-family:'IBM Plex Mono',monospace; font-size:1.05rem; color:#e6edf3; font-weight:600; }
-.stat-sub   { font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:#6e7681; margin-top:0.1rem; }
+.step-active{background:#1a3a5c;color:#58a6ff;border:1px solid #388bfd}
+.step-done{background:#0d2d10;color:#3fb950;border:1px solid #2ea043}
+.step-idle{background:#161b22;color:#6e7681;border:1px solid #21262d}
+.step-arrow{color:#30363d;font-size:.9rem}
 
-.section-head {
-    font-family:'IBM Plex Mono',monospace; font-size:0.72rem;
-    color:#8b949e; text-transform:uppercase; letter-spacing:0.12em;
-    border-bottom:1px solid #21262d; padding-bottom:0.3rem;
-    margin-bottom:0.8rem; margin-top:1.4rem;
+.legend-row{display:flex;align-items:center;gap:.5rem;padding:.25rem 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:#c9d1d9}
+.legend-count{margin-left:auto;color:#6e7681}
+
+.stDownloadButton>button{
+  background:#21262d;color:#c9d1d9;border:1px solid #30363d;
+  border-radius:6px;font-family:'IBM Plex Mono',monospace;
+  font-size:.78rem;padding:.35rem .9rem;width:100%;margin-bottom:.3rem;
 }
+.stDownloadButton>button:hover{background:#30363d;border-color:#8b949e;color:#e6edf3}
 
-.legend-row { display:flex; align-items:center; gap:0.5rem; padding:0.25rem 0; font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:#c9d1d9; }
-.legend-count { margin-left:auto; color:#6e7681; }
-
-.stDownloadButton > button {
-    background:#21262d; color:#c9d1d9; border:1px solid #30363d;
-    border-radius:6px; font-family:'IBM Plex Mono',monospace;
-    font-size:0.78rem; padding:0.35rem 0.9rem;
-    width:100%; margin-bottom:0.3rem;
-}
-.stDownloadButton > button:hover { background:#30363d; border-color:#8b949e; color:#e6edf3; }
-
-.stProgress > div > div { background:#388bfd; }
-div[data-testid="stStatusWidget"] { display:none; }
+.stProgress>div>div{background:#388bfd}
+div[data-testid="stStatusWidget"]{display:none}
 </style>
 """, unsafe_allow_html=True)
 
 
+# ---------------------------------------------------------------------------
+# Sidebar
+# ---------------------------------------------------------------------------
+
 with st.sidebar:
     st.markdown("## SPI Grid Extractor")
     st.markdown(
-        "<span style='font-size:0.75rem;color:#6e7681'>"
+        "<span style='font-size:.75rem;color:#6e7681'>"
         "Standardized Precipitation Index<br>dari citra peta raster</span>",
         unsafe_allow_html=True,
     )
     st.divider()
 
     target_island = st.selectbox("Pulau Target", options=list(ISLAND_GEOREF.keys()), index=0)
-    uploaded_file = st.file_uploader("Unggah Citra Peta", type=["png", "jpg", "jpeg", "tif", "tiff"])
+    uploaded_file = st.file_uploader(
+        "Unggah Citra Peta",
+        type=["png", "jpg", "jpeg", "tif", "tiff"],
+    )
+
+    st.divider()
+    grid_px      = st.slider("Ukuran Grid (piksel)", min_value=2, max_value=6, value=GRID_PX, step=1)
+    use_province = st.checkbox("Spatial Join Provinsi", value=True)
+
+    app_step = st.session_state.get("app_step", "calibrate")
 
     st.divider()
 
-    grid_px      = st.slider("Ukuran Grid (piksel)", min_value=2, max_value=6, value=GRID_PX, step=1)
-    use_province = st.checkbox("Spatial Join Provinsi", value=True)
-    run_btn      = st.button("Proses Ekstraksi", type="primary", use_container_width=True)
+    if app_step == "process":
+        if st.button("Ubah Kalibrasi", use_container_width=True):
+            for k in [
+                "app_step", "has_result", "cached_file_id",
+                "vis_png_bytes", "geojson_bytes", "csv_bytes",
+                "zip_bytes", "df_records", "class_count", "slug", "stats", "img_name",
+            ]:
+                st.session_state.pop(k, None)
+            st.rerun()
 
     if st.session_state.get("has_result"):
-        if st.button("Kembali / Reset", use_container_width=True):
-            for k in list(st.session_state.keys()):
-                del st.session_state[k]
+        if st.button("Kembali / Reset Hasil", use_container_width=True):
+            for k in [
+                "has_result", "cached_file_id",
+                "vis_png_bytes", "geojson_bytes", "csv_bytes",
+                "zip_bytes", "df_records", "class_count", "slug", "stats", "img_name",
+            ]:
+                st.session_state.pop(k, None)
             st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# Header
+# ---------------------------------------------------------------------------
 
 st.markdown(
     "<h1 style='font-family:IBM Plex Mono,monospace;font-size:1.4rem;"
-    "color:#e6edf3;font-weight:600;margin-bottom:0.2rem'>SPI Grid Extractor</h1>",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    "<p style='color:#8b949e;font-size:0.85rem;margin-top:0'>"
-    "Konversi peta raster SPI ke grid GeoJSON bergeoreferensi dengan anotasi provinsi.</p>",
+    "color:#e6edf3;font-weight:600;margin-bottom:.5rem'>SPI Grid Extractor</h1>",
     unsafe_allow_html=True,
 )
 
 
+# ---------------------------------------------------------------------------
+# Invalidate everything when file or island changes
+# ---------------------------------------------------------------------------
 
-file_id = (
-    f"{uploaded_file.name}_{uploaded_file.size}_{target_island}_{grid_px}_{use_province}"
+file_sig = (
+    f"{uploaded_file.name}_{uploaded_file.size}_{target_island}"
     if uploaded_file else None
 )
 
-if file_id and st.session_state.get("cached_file_id") != file_id:
-    for k in [
-        "has_result", "cached_file_id", "vis_png_bytes", "geojson_bytes",
-        "csv_bytes", "zip_bytes", "df_records", "class_count", "slug", "stats", "img_name",
-    ]:
-        st.session_state.pop(k, None)
+if file_sig and st.session_state.get("file_sig") != file_sig:
+    for k in list(st.session_state.keys()):
+        if k not in ("custom_georef",):
+            del st.session_state[k]
+    st.session_state["file_sig"] = file_sig
+    st.session_state["app_step"] = "calibrate"
+
+app_step = st.session_state.get("app_step", "calibrate")
+
+
+# ---------------------------------------------------------------------------
+# Step indicator
+# ---------------------------------------------------------------------------
+
+cal_done  = "custom_georef" in st.session_state and target_island in st.session_state.get("custom_georef", {})
+proc_done = st.session_state.get("has_result", False)
+
+step1_cls = "step-done" if cal_done else "step-active" if app_step == "calibrate" else "step-idle"
+step2_cls = "step-active" if app_step == "process" and not proc_done else "step-done" if proc_done else "step-idle"
+
+st.markdown(
+    f"<div class='step-indicator'>"
+    f"<span class='step-pill {step1_cls}'>1. Kalibrasi Georef</span>"
+    f"<span class='step-arrow'>›</span>"
+    f"<span class='step-pill {step2_cls}'>2. Proses Ekstraksi</span>"
+    f"</div>",
+    unsafe_allow_html=True,
+)
+
+
+# ---------------------------------------------------------------------------
+# No file
+# ---------------------------------------------------------------------------
 
 if uploaded_file is None:
-    st.info("Unggah citra peta dan pilih pulau target di sidebar, lalu tekan Proses Ekstraksi.")
+    st.info("Unggah citra peta dan pilih pulau target di sidebar untuk memulai.")
     st.stop()
 
 
+# ---------------------------------------------------------------------------
+# Cache image bytes once
+# ---------------------------------------------------------------------------
 
-if not st.session_state.get("has_result") and not run_btn:
-    raw       = uploaded_file.read()
-    nparr     = np.frombuffer(raw, np.uint8)
-    preview   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    h_p, w_p  = preview.shape[:2]
-    st.image(
-        cv2.cvtColor(preview, cv2.COLOR_BGR2RGB),
-        caption=f"{uploaded_file.name}   {w_p}×{h_p}px",
-        use_container_width=True,
+if st.session_state.get("file_sig") == file_sig and "img_bytes_cache" in st.session_state:
+    img_bytes = st.session_state["img_bytes_cache"]
+else:
+    img_bytes = uploaded_file.read()
+    st.session_state["img_bytes_cache"] = img_bytes
+
+
+# ============================================================================
+# STEP 1 — KALIBRASI
+# ============================================================================
+
+if app_step == "calibrate":
+    st.markdown("<div class='section-head'>Kalibrasi Georeferensi</div>", unsafe_allow_html=True)
+    render_calibration(img_bytes, target_island)
+    st.stop()
+
+
+# ============================================================================
+# STEP 2 — PROSES EKSTRAKSI
+# ============================================================================
+
+st.markdown("<div class='section-head'>Proses Ekstraksi SPI</div>", unsafe_allow_html=True)
+
+georef_cfg = (
+    st.session_state.get("custom_georef", {}).get(target_island)
+    or ISLAND_GEOREF[target_island]
+)
+
+if not st.session_state.get("has_result"):
+    slug   = target_island.lower().replace(" ", "_")
+    arr    = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+    h_p, w_p = arr.shape[:2]
+
+    cal = st.session_state.get("custom_georef", {}).get(target_island, {})
+    cfg_lon = cal.get("lon", georef_cfg["lon"])
+    cfg_lat = cal.get("lat", georef_cfg["lat"])
+
+    st.markdown(
+        f"<div style='font-family:IBM Plex Mono,monospace;font-size:.75rem;"
+        f"color:#c9d1d9;background:#0d1117;border:1px solid #21262d;"
+        f"border-radius:6px;padding:.6rem 1rem;margin-bottom:1rem'>"
+        f"<span style='color:#3fb950'>Georef aktif</span>  "
+        f"P1 px={cfg_lon['px1']} py={cfg_lat['py1']} → "
+        f"({cfg_lon['lon1']:.4f}°E, {cfg_lat['lat1']:.4f}°)  &nbsp;|&nbsp;  "
+        f"P2 px={cfg_lon['px2']} py={cfg_lat['py2']} → "
+        f"({cfg_lon['lon2']:.4f}°E, {cfg_lat['lat2']:.4f}°)</div>",
+        unsafe_allow_html=True,
     )
-    st.stop()
+
+    col_prev, col_settings = st.columns([3, 1], gap="large")
+
+    with col_prev:
+        st.image(
+            cv2.cvtColor(arr, cv2.COLOR_BGR2RGB),
+            caption=f"{uploaded_file.name}   {w_p}×{h_p}px",
+            use_container_width=True,
+        )
+
+    with col_settings:
+        st.markdown("<div class='section-head'>Pengaturan</div>", unsafe_allow_html=True)
+
+        def _sbox(label, value):
+            st.markdown(
+                f"<div class='stat-block'><div class='stat-label'>{label}</div>"
+                f"<div class='stat-value'>{value}</div></div>",
+                unsafe_allow_html=True,
+            )
+
+        _sbox("Pulau", target_island)
+        _sbox("Ukuran Grid", f"{grid_px}px")
+        _sbox("Spatial Join", "Aktif" if use_province else "Nonaktif")
+
+        st.markdown("<div style='height:.5rem'></div>", unsafe_allow_html=True)
+
+        if st.button("Mulai Proses Ekstraksi", type="primary", use_container_width=True):
+            st.session_state["run_process"] = True
+            st.rerun()
+
+    if not st.session_state.get("run_process"):
+        st.stop()
 
 
-if run_btn:
-    slug       = target_island.lower().replace(" ", "_")
-    georef_cfg = ISLAND_GEOREF[target_island]
+# ---------------------------------------------------------------------------
+# Pipeline
+# ---------------------------------------------------------------------------
+
+if st.session_state.get("run_process") and not st.session_state.get("has_result"):
+    slug = target_island.lower().replace(" ", "_")
+    file_id = f"{file_sig}_{grid_px}_{use_province}"
 
     prog_bar    = st.progress(0, text="Memulai proses...")
     status_area = st.empty()
 
     def _log(msg: str):
         status_area.markdown(
-            f"<span style='font-family:IBM Plex Mono,monospace;font-size:0.78rem;"
+            f"<span style='font-family:IBM Plex Mono,monospace;font-size:.78rem;"
             f"color:#8b949e'>{msg}</span>",
             unsafe_allow_html=True,
         )
@@ -166,12 +300,8 @@ if run_btn:
 
     prog_bar.progress(5, text="Membaca gambar...")
     _log("Membaca gambar...")
-    raw   = uploaded_file.read()
-    nparr = np.frombuffer(raw, np.uint8)
+    nparr = np.frombuffer(img_bytes, np.uint8)
     img   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    if img is None:
-        st.error("Gagal membaca gambar. Pastikan format file valid.")
-        st.stop()
 
     h_img, w_img = img.shape[:2]
     img_hsv      = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -203,7 +333,7 @@ if run_btn:
     palette = build_palette_lab()
 
     def _cls_prog(cur, tot):
-        pct = int(40 + (cur / max(tot, 1)) * 45)
+        pct = int(40 + cur / max(tot, 1) * 45)
         prog_bar.progress(min(pct, 85), text=f"Klasifikasi grid {cur:,} / {tot:,}...")
 
     features, class_count = classify_grid(
@@ -214,16 +344,16 @@ if run_btn:
 
     prog_bar.progress(88, text="Statistik...")
     _log("Menghitung statistik...")
-    total_grids   = len(features)
-    coverage_km2  = total_grids * km_x * km_y
-    all_lons      = [f["properties"]["lon_center"] for f in features]
-    all_lats      = [f["properties"]["lat_center"] for f in features]
+    total_grids  = len(features)
+    coverage_km2 = total_grids * km_x * km_y
+    all_lons     = [f["properties"]["lon_center"] for f in features]
+    all_lats     = [f["properties"]["lat_center"] for f in features]
 
     prog_bar.progress(92, text="Render peta...")
     _log("Merender peta output...")
-    vis_img        = build_output_image(sea, features, island_rings, h_img, w_img, geo2px, scale=3)
-    _, vis_buf     = cv2.imencode(".png", vis_img)
-    vis_png_bytes  = vis_buf.tobytes()
+    vis_img       = build_output_image(sea, features, island_rings, h_img, w_img, geo2px, scale=3)
+    _, vis_buf    = cv2.imencode(".png", vis_img)
+    vis_png_bytes = vis_buf.tobytes()
 
     prog_bar.progress(95, text="GeoJSON...")
     _log("Menyusun GeoJSON...")
@@ -245,6 +375,7 @@ if run_btn:
 
     st.session_state.update({
         "has_result":     True,
+        "run_process":    False,
         "cached_file_id": file_id,
         "vis_png_bytes":  vis_png_bytes,
         "geojson_bytes":  geojson_bytes,
@@ -279,6 +410,10 @@ if run_btn:
     st.rerun()
 
 
+# ---------------------------------------------------------------------------
+# Tampilan hasil
+# ---------------------------------------------------------------------------
+
 if not st.session_state.get("has_result"):
     st.stop()
 
@@ -293,13 +428,11 @@ img_name      = st.session_state["img_name"]
 s             = st.session_state["stats"]
 
 
-def _stat(label: str, value: str, sub: str = ""):
+def _stat(label, value, sub=""):
     sub_html = f"<div class='stat-sub'>{sub}</div>" if sub else ""
     st.markdown(
-        f"<div class='stat-block'>"
-        f"<div class='stat-label'>{label}</div>"
-        f"<div class='stat-value'>{value}</div>"
-        f"{sub_html}</div>",
+        f"<div class='stat-block'><div class='stat-label'>{label}</div>"
+        f"<div class='stat-value'>{value}</div>{sub_html}</div>",
         unsafe_allow_html=True,
     )
 
@@ -307,13 +440,13 @@ def _stat(label: str, value: str, sub: str = ""):
 col_map, col_info = st.columns([3, 1], gap="large")
 
 with col_map:
-    st.markdown("<div class='section-head'>Peta Klasifikasi SPI</div>", unsafe_allow_html=True)
     vis_rgb = cv2.imdecode(np.frombuffer(vis_png_bytes, np.uint8), cv2.IMREAD_COLOR)
     st.image(
         cv2.cvtColor(vis_rgb, cv2.COLOR_BGR2RGB),
         caption=(
             f"{img_name}   {s['w_img']}×{s['h_img']}px  |  "
-            f"{s['m_per_px_x']:.0f}m/px × {s['m_per_px_y']:.0f}m/px"
+            f"{s['m_per_px_x']:.0f}m/px × {s['m_per_px_y']:.0f}m/px\n"
+            f"Grid {s['grid_px']}px ≈ {s['km_x']:.1f}km × {s['km_y']:.1f}km"
         ),
         use_container_width=True,
     )
@@ -354,8 +487,8 @@ with col_info:
     st.download_button("Semua File (ZIP)", zip_bytes,     f"{slug}_spi_output.zip",          "application/zip")
 
     st.markdown(
-        f"<div style='font-family:IBM Plex Mono,monospace;font-size:0.68rem;"
-        f"color:#6e7681;margin-top:0.6rem'>"
+        f"<div style='font-family:IBM Plex Mono,monospace;font-size:.68rem;"
+        f"color:#6e7681;margin-top:.6rem'>"
         f"Diproses dalam {s['t_elapsed']:.1f}s &nbsp;|&nbsp; "
         f"{s['total_grids']:,} fitur &nbsp;|&nbsp; "
         f"{len(geojson_bytes)//1024} KB GeoJSON &nbsp;|&nbsp; "
@@ -363,6 +496,10 @@ with col_info:
         unsafe_allow_html=True,
     )
 
+
+# ---------------------------------------------------------------------------
+# Tabel data CSV
+# ---------------------------------------------------------------------------
 
 HEADER_LABELS = {
     "provinsi":     "Provinsi",
@@ -381,44 +518,40 @@ with ctrl_l:
     filter_cat = st.selectbox(
         "Filter",
         options=["Semua"] + [v["name"] for v in LEGEND.values()],
-        index=0,
-        label_visibility="collapsed",
+        index=0, label_visibility="collapsed",
     )
 with ctrl_r:
     page_size = st.selectbox(
-        "Baris",
-        options=[25, 50, 100, 250, 500],
-        index=1,
-        label_visibility="collapsed",
+        "Baris", options=[25, 50, 100, 250, 500],
+        index=1, label_visibility="collapsed",
     )
 
 filtered       = df_records if filter_cat == "Semua" else [r for r in df_records if r["spi_category"] == filter_cat]
 total_filtered = len(filtered)
 total_pages    = max(1, (total_filtered + page_size - 1) // page_size)
 
-page_col, info_col = st.columns([1, 3])
-with page_col:
+pg_col, info_col = st.columns([1, 3])
+with pg_col:
     page_num = st.number_input(
-        "Hal",
-        min_value=1, max_value=total_pages, value=1, step=1,
+        "Hal", min_value=1, max_value=total_pages, value=1, step=1,
         label_visibility="collapsed",
     )
 with info_col:
-    start_row   = (page_num - 1) * page_size + 1
-    end_row     = min(page_num * page_size, total_filtered)
-    filter_note = f"  (filter: {filter_cat})" if filter_cat != "Semua" else ""
+    s_row = (page_num - 1) * page_size + 1
+    e_row = min(page_num * page_size, total_filtered)
+    note  = f"  (filter: {filter_cat})" if filter_cat != "Semua" else ""
     st.markdown(
-        f"<div style='font-family:IBM Plex Mono,monospace;font-size:0.75rem;"
-        f"color:#8b949e;padding-top:0.45rem'>"
-        f"Menampilkan {start_row:,}–{end_row:,} dari {total_filtered:,} baris{filter_note}</div>",
+        f"<div style='font-family:IBM Plex Mono,monospace;font-size:.75rem;"
+        f"color:#8b949e;padding-top:.45rem'>"
+        f"Menampilkan {s_row:,}–{e_row:,} dari {total_filtered:,} baris{note}</div>",
         unsafe_allow_html=True,
     )
 
 page_data = filtered[(page_num - 1) * page_size : page_num * page_size]
 
 header_html = "".join(
-    f"<th style='font-family:IBM Plex Mono,monospace;font-size:0.7rem;color:#8b949e;"
-    f"text-transform:uppercase;letter-spacing:0.07em;padding:0.4rem 0.8rem;"
+    f"<th style='font-family:IBM Plex Mono,monospace;font-size:.7rem;color:#8b949e;"
+    f"text-transform:uppercase;letter-spacing:.07em;padding:.4rem .8rem;"
     f"border-bottom:1px solid #21262d;text-align:left;white-space:nowrap'>{lbl}</th>"
     for lbl in HEADER_LABELS.values()
 )
@@ -444,8 +577,8 @@ for rec in page_data:
         else:
             content = str(val) if val else '<span style="color:#6e7681">—</span>'
         cells += (
-            f"<td style='font-family:IBM Plex Mono,monospace;font-size:0.75rem;color:#c9d1d9;"
-            f"padding:0.32rem 0.8rem;border-bottom:1px solid #161b22;"
+            f"<td style='font-family:IBM Plex Mono,monospace;font-size:.75rem;color:#c9d1d9;"
+            f"padding:.32rem .8rem;border-bottom:1px solid #161b22;"
             f"white-space:nowrap'>{content}</td>"
         )
     rows_html += f"<tr style='background:#0d1117'>{cells}</tr>"
@@ -469,11 +602,10 @@ with dl_col:
         )
         w.writeheader()
         w.writerows(filtered)
-        filtered_csv_bytes = buf.getvalue().encode("utf-8")
         st.download_button(
             f"Unduh CSV — {filter_cat} ({total_filtered:,} baris)",
-            filtered_csv_bytes,
-            f"{slug}_{filter_cat.lower().replace(' ', '_')}_spi.csv",
+            buf.getvalue().encode("utf-8"),
+            f"{slug}_{filter_cat.lower().replace(' ','_')}_spi.csv",
             "text/csv",
         )
     else:
