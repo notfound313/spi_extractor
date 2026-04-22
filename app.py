@@ -80,10 +80,6 @@ div[data-testid="stStatusWidget"] { display:none; }
 """, unsafe_allow_html=True)
 
 
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-
 with st.sidebar:
     st.markdown("## SPI Grid Extractor")
     st.markdown(
@@ -108,11 +104,6 @@ with st.sidebar:
                 del st.session_state[k]
             st.rerun()
 
-
-# ---------------------------------------------------------------------------
-# Header
-# ---------------------------------------------------------------------------
-
 st.markdown(
     "<h1 style='font-family:IBM Plex Mono,monospace;font-size:1.4rem;"
     "color:#e6edf3;font-weight:600;margin-bottom:0.2rem'>SPI Grid Extractor</h1>",
@@ -125,9 +116,6 @@ st.markdown(
 )
 
 
-# ---------------------------------------------------------------------------
-# Cache invalidation: jika file/konfigurasi berubah, hapus hasil lama
-# ---------------------------------------------------------------------------
 
 file_id = (
     f"{uploaded_file.name}_{uploaded_file.size}_{target_island}_{grid_px}_{use_province}"
@@ -141,19 +129,11 @@ if file_id and st.session_state.get("cached_file_id") != file_id:
     ]:
         st.session_state.pop(k, None)
 
-
-# ---------------------------------------------------------------------------
-# Tidak ada file
-# ---------------------------------------------------------------------------
-
 if uploaded_file is None:
     st.info("Unggah citra peta dan pilih pulau target di sidebar, lalu tekan Proses Ekstraksi.")
     st.stop()
 
 
-# ---------------------------------------------------------------------------
-# Preview sebelum diproses
-# ---------------------------------------------------------------------------
 
 if not st.session_state.get("has_result") and not run_btn:
     raw       = uploaded_file.read()
@@ -167,10 +147,6 @@ if not st.session_state.get("has_result") and not run_btn:
     )
     st.stop()
 
-
-# ---------------------------------------------------------------------------
-# Pipeline — hanya berjalan saat tombol Proses diklik
-# ---------------------------------------------------------------------------
 
 if run_btn:
     slug       = target_island.lower().replace(" ", "_")
@@ -303,10 +279,6 @@ if run_btn:
     st.rerun()
 
 
-# ---------------------------------------------------------------------------
-# Tampilan hasil — hanya baca dari session_state, tidak ada komputasi ulang
-# ---------------------------------------------------------------------------
-
 if not st.session_state.get("has_result"):
     st.stop()
 
@@ -391,10 +363,6 @@ with col_info:
         unsafe_allow_html=True,
     )
 
-
-# ---------------------------------------------------------------------------
-# Tabel data CSV dengan filter & paginasi
-# ---------------------------------------------------------------------------
 
 HEADER_LABELS = {
     "provinsi":     "Provinsi",
