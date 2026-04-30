@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 
 from config import ISLAND_GEOREF
 
-_DIR = os.path.join(tempfile.gettempdir(), "spi_zoomcal_v2")
+_DIR = os.path.join(tempfile.gettempdir(), "spi_zoomcal_v3")
 os.makedirs(_DIR, exist_ok=True)
 
 _COMPONENT_HTML = r"""<!DOCTYPE html>
@@ -27,8 +27,6 @@ body {
   flex-direction: column;
   height: 100vh;
 }
-
-/* ── toolbar ── */
 #toolbar {
   display: flex;
   align-items: center;
@@ -40,169 +38,96 @@ body {
   flex-shrink: 0;
 }
 .tbtn {
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
-  border-radius: 4px;
-  padding: 2px 11px;
-  font-family: inherit;
-  font-size: 14px;
-  cursor: pointer;
-  line-height: 1.6;
-  user-select: none;
+  background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+  border-radius: 4px; padding: 2px 11px; font-family: inherit;
+  font-size: 14px; cursor: pointer; line-height: 1.6; user-select: none;
 }
 .tbtn:hover { background: #30363d; border-color: #8b949e; }
 #zoom-val { font-size: 12px; color: #8b949e; min-width: 46px; text-align: center; }
 #step-lbl {
-  margin-left: auto;
-  font-size: 11px;
-  padding: 2px 12px;
-  border-radius: 10px;
-  white-space: nowrap;
+  margin-left: auto; font-size: 11px; padding: 2px 14px;
+  border-radius: 10px; white-space: nowrap;
 }
-.s1 { background: #3a1010; color: #e63946; border: 1px solid #e63946; }
-.s2 { background: #0a1e3a; color: #2196f3; border: 1px solid #2196f3; }
-.sd { background: #0a2010; color: #3fb950; border: 1px solid #2ea043; }
+.s0 { background:#3a1010; color:#e63946; border:1px solid #e63946; }
+.s1 { background:#0a1e3a; color:#2196f3; border:1px solid #2196f3; }
+.s2 { background:#1a2a0a; color:#8bc34a; border:1px solid #8bc34a; }
+.s3 { background:#2a1a0a; color:#ff9800; border:1px solid #ff9800; }
+.sd { background:#0a2010; color:#3fb950; border:1px solid #2ea043; }
 
-/* ── viewport: clips the zoomed scene, holds overlay elements ── */
 #viewport {
-  position: relative;
-  width: 100%;
-  flex: 1;
-  overflow: hidden;
-  cursor: crosshair;
-  background: #0d1117;
+  position: relative; width: 100%; flex: 1;
+  overflow: hidden; cursor: crosshair; background: #0d1117;
   min-height: 200px;
 }
-
-/* ── scene: the transformed (zoom+pan) container ── */
 #scene {
-  position: absolute;
-  top: 0; left: 0;
-  transform-origin: 0 0;
-  will-change: transform;
+  position: absolute; top: 0; left: 0;
+  transform-origin: 0 0; will-change: transform;
 }
 #scene img {
-  display: block;
-  max-width: none;
-  user-select: none;
-  -webkit-user-drag: none;
+  display: block; max-width: none;
+  user-select: none; -webkit-user-drag: none;
 }
-
-/* ── overlays inside VIEWPORT (not scene) — viewport-space coordinates ── */
 #badge {
-  position: absolute;
-  top: 8px; left: 8px;
-  background: rgba(0,0,0,.82);
-  color: #e6edf3;
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 13px;
-  pointer-events: none;
-  border: 1px solid rgba(255,255,255,.12);
-  z-index: 30;
-  white-space: nowrap;
-  letter-spacing: .04em;
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(0,0,0,.82); color: #e6edf3;
+  padding: 4px 12px; border-radius: 4px; font-size: 13px;
+  pointer-events: none; border: 1px solid rgba(255,255,255,.12);
+  z-index: 30; white-space: nowrap; letter-spacing: .04em;
 }
 #hint {
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  padding: 3px 14px;
-  border-radius: 10px;
-  pointer-events: none;
-  white-space: nowrap;
-  z-index: 30;
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; padding: 3px 14px; border-radius: 10px;
+  pointer-events: none; white-space: nowrap; z-index: 30;
 }
-/* Crosshairs live in VIEWPORT space — never inside #scene */
 #chH, #chV {
-  position: absolute;
-  pointer-events: none;
-  z-index: 20;
-  display: none;
+  position: absolute; pointer-events: none; z-index: 20; display: none;
 }
 #chH { height: 1px; left: 0; right: 0; background: rgba(255,255,255,.25); }
-#chV { width: 1px;  top: 0; bottom: 0; background: rgba(255,255,255,.25); }
+#chV { width: 1px; top: 0; bottom: 0; background: rgba(255,255,255,.25); }
 
-/* ── elements inside SCENE (image-space coordinates, scaled with image) ── */
 .dot {
-  position: absolute;
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  border: 2.5px solid #fff;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: #fff;
-  pointer-events: none;
-  box-shadow: 0 2px 10px rgba(0,0,0,.7);
-  z-index: 15;
+  position: absolute; width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid #fff; transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; pointer-events: none;
+  box-shadow: 0 2px 10px rgba(0,0,0,.7); z-index: 15;
 }
 .dot-lbl {
-  position: absolute;
-  font-size: 10px;
-  pointer-events: none;
-  background: rgba(0,0,0,.7);
-  padding: 2px 6px;
-  border-radius: 3px;
-  white-space: nowrap;
-  z-index: 15;
+  position: absolute; font-size: 9px; pointer-events: none;
+  background: rgba(0,0,0,.7); padding: 2px 5px; border-radius: 3px;
+  white-space: nowrap; z-index: 15;
 }
 .guide {
-  position: absolute;
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  border: 2px dashed rgba(255,255,255,.45);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 12;
+  position: absolute; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px dashed rgba(255,255,255,.45); transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 12;
 }
 .guide-lbl {
-  position: absolute;
-  font-size: 9px;
-  color: rgba(255,255,255,.6);
-  background: rgba(0,0,0,.55);
-  padding: 1px 5px;
-  border-radius: 2px;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 12;
+  position: absolute; font-size: 9px; color: rgba(255,255,255,.6);
+  background: rgba(0,0,0,.55); padding: 1px 4px; border-radius: 2px;
+  white-space: nowrap; pointer-events: none; z-index: 12;
 }
 </style>
 </head>
 <body>
-
 <div id="toolbar">
-  <button class="tbtn" id="btn-zin"   title="Zoom In">+</button>
-  <span   id="zoom-val">100%</span>
-  <button class="tbtn" id="btn-zout"  title="Zoom Out">−</button>
-  <button class="tbtn" id="btn-reset" title="Reset view">Reset</button>
-  <span style="font-size:11px;color:#6e7681">
-    Scroll: zoom &nbsp;|&nbsp; Ctrl+drag / tengah: geser
-  </span>
-  <span id="step-lbl" class="s1">Klik Titik 1</span>
+  <button class="tbtn" id="btn-zin">+</button>
+  <span id="zoom-val">100%</span>
+  <button class="tbtn" id="btn-zout">−</button>
+  <button class="tbtn" id="btn-reset">Reset</button>
+  <span style="font-size:11px;color:#6e7681">Scroll: zoom &nbsp;|&nbsp; Ctrl+drag: geser</span>
+  <span id="step-lbl" class="s0">Klik GCP 1 (NW)</span>
 </div>
-
-<!-- viewport: clips scene, hosts badge/crosshair/hint in viewport space -->
 <div id="viewport">
   <div id="badge">X: —  |  Y: —</div>
   <div id="chH"></div>
   <div id="chV"></div>
-  <div id="hint" class="s1">Klik Sudut Kiri Atas Peta (Barat Laut)</div>
-
-  <!-- scene: zoom+pan transform applied here; dots/guides live here -->
+  <div id="hint" class="s0">Klik Sudut Kiri Atas (Barat Laut)</div>
   <div id="scene">
     <img id="map" src="" alt="" draggable="false"/>
   </div>
 </div>
-
 <script>
-/* ── Streamlit protocol (inlined — no CDN dependency) ── */
 const ST = {
   RENDER_EVENT: "streamlit:render",
   events: {
@@ -213,207 +138,144 @@ const ST = {
     }
   },
   setComponentReady() {
-    window.parent.postMessage(
-      { isStreamlitMessage: true, type: "streamlit:componentReady", apiVersion: 1 }, "*"
-    );
+    window.parent.postMessage({ isStreamlitMessage:true, type:"streamlit:componentReady", apiVersion:1 }, "*");
   },
   setComponentValue(val) {
-    window.parent.postMessage(
-      { isStreamlitMessage: true, type: "streamlit:setComponentValue", value: val }, "*"
-    );
+    window.parent.postMessage({ isStreamlitMessage:true, type:"streamlit:setComponentValue", value:val }, "*");
   },
   setFrameHeight(h) {
-    window.parent.postMessage(
-      { isStreamlitMessage: true, type: "streamlit:setFrameHeight", height: Math.round(h) }, "*"
-    );
+    window.parent.postMessage({ isStreamlitMessage:true, type:"streamlit:setFrameHeight", height:Math.round(h) }, "*");
   }
 };
 
-/* ── DOM refs ── */
-const viewport  = document.getElementById("viewport");
-const scene     = document.getElementById("scene");
-const mapImg    = document.getElementById("map");
-const badge     = document.getElementById("badge");
-const chH       = document.getElementById("chH");
-const chV       = document.getElementById("chV");
-const hint      = document.getElementById("hint");
-const stepLbl   = document.getElementById("step-lbl");
-const zoomVal   = document.getElementById("zoom-val");
+const viewport = document.getElementById("viewport");
+const scene    = document.getElementById("scene");
+const mapImg   = document.getElementById("map");
+const badge    = document.getElementById("badge");
+const chH      = document.getElementById("chH");
+const chV      = document.getElementById("chV");
+const hint     = document.getElementById("hint");
+const stepLbl  = document.getElementById("step-lbl");
+const zoomVal  = document.getElementById("zoom-val");
 
-/* ── state ── */
-let scale   = 1;
-let panX    = 0;
-let panY    = 0;
-let clicks  = [];
-let isPan   = false;
-let panOX   = 0;   // panX when pan started
-let panOY   = 0;
-let panMX   = 0;   // mouse X when pan started
-let panMY   = 0;
+const STEP_CFG = [
+  { cls:"s0", step:"Klik GCP 1 (NW)", hint:"Klik Sudut Kiri Atas (Barat Laut)",  color:"#e63946" },
+  { cls:"s1", step:"Klik GCP 2 (NE)", hint:"Klik Sudut Kanan Atas (Timur Laut)", color:"#2196f3" },
+  { cls:"s2", step:"Klik GCP 3 (SW)", hint:"Klik Sudut Kiri Bawah (Barat Daya)", color:"#8bc34a" },
+  { cls:"s3", step:"Klik GCP 4 (SE)", hint:"Klik Sudut Kanan Bawah (Tenggara)",  color:"#ff9800" },
+  { cls:"sd", step:"Selesai",          hint:"4 GCP terekam — isi lon/lat & simpan", color:"#3fb950" },
+];
+
+let scale = 1, panX = 0, panY = 0;
+let clicks = [];
+let isPan = false, panOX = 0, panOY = 0, panMX = 0, panMY = 0;
 let imgLoaded = false;
+const MIN_S = 0.15, MAX_S = 14, VP_H = 520;
 
-const MIN_SCALE = 0.2;
-const MAX_SCALE = 12;
-const VIEWPORT_H = 520;   // fixed height — avoids clientHeight=0 bug
+viewport.style.height = VP_H + "px";
+ST.setFrameHeight(VP_H + 38 + 4);
 
-/* ── set fixed height immediately so frame never collapses ── */
-viewport.style.height = VIEWPORT_H + "px";
-ST.setFrameHeight(VIEWPORT_H + 38 + 4);
-
-/* ── transform helpers ── */
 function applyTransform() {
-  scene.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  scene.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`;
   zoomVal.textContent   = Math.round(scale * 100) + "%";
 }
 
 function clampPan() {
   if (!imgLoaded) return;
-  const sw = mapImg.naturalWidth  * scale;
-  const sh = mapImg.naturalHeight * scale;
-  const vw = viewport.clientWidth  || 800;
-  const vh = VIEWPORT_H;
-
-  if (sw <= vw) { panX = (vw - sw) / 2; }
-  else          { panX = Math.min(0, Math.max(panX, vw - sw)); }
-
-  if (sh <= vh) { panY = (vh - sh) / 2; }
-  else          { panY = Math.min(0, Math.max(panY, vh - sh)); }
+  const sw = mapImg.naturalWidth * scale, sh = mapImg.naturalHeight * scale;
+  const vw = viewport.clientWidth || 800, vh = VP_H;
+  panX = sw <= vw ? (vw - sw) / 2 : Math.min(0, Math.max(panX, vw - sw));
+  panY = sh <= vh ? (vh - sh) / 2 : Math.min(0, Math.max(panY, vh - sh));
 }
 
-/* ── image→viewport coordinate conversion ── */
-function toImg(clientX, clientY) {
+function toImg(cx, cy) {
   const vr = viewport.getBoundingClientRect();
   return {
-    x: Math.round((clientX - vr.left - panX) / scale),
-    y: Math.round((clientY - vr.top  - panY) / scale)
+    x: Math.round((cx - vr.left - panX) / scale),
+    y: Math.round((cy - vr.top  - panY) / scale),
   };
 }
 
 function inBounds(x, y) {
-  return x >= 0 && y >= 0
-      && x <= mapImg.naturalWidth
-      && y <= mapImg.naturalHeight;
+  return x >= 0 && y >= 0 && x <= mapImg.naturalWidth && y <= mapImg.naturalHeight;
 }
 
-/* ── step UI ── */
 function updateStep() {
-  const n = clicks.length;
-  if (n === 0) {
-    stepLbl.textContent = "Klik Titik 1";       stepLbl.className = "s1";
-    hint.textContent    = "Klik Sudut Kiri Atas Peta (Barat Laut)"; hint.className = "s1";
-  } else if (n === 1) {
-    stepLbl.textContent = "Klik Titik 2";       stepLbl.className = "s2";
-    hint.textContent    = "Klik Sudut Kanan Bawah Peta (Tenggara)"; hint.className = "s2";
-  } else {
-    stepLbl.textContent = "Selesai";            stepLbl.className = "sd";
-    hint.textContent    = "2 titik terekam — isi lon/lat lalu simpan"; hint.className = "sd";
-  }
+  const n  = Math.min(clicks.length, 4);
+  const cf = STEP_CFG[n];
+  stepLbl.textContent = cf.step; stepLbl.className = cf.cls;
+  hint.textContent    = cf.hint; hint.className    = cf.cls;
 }
 
-/* ── add dot+label inside SCENE (image-space coords) ── */
 function addDot(x, y, n) {
-  const dot     = document.createElement("div");
-  dot.className = "dot";
-  dot.style.left       = x + "px";
-  dot.style.top        = y + "px";
-  dot.style.background = n === 1 ? "#e63946" : "#2196f3";
-  dot.textContent      = n;
+  const col = STEP_CFG[n - 1].color;
+  const dot = document.createElement("div");
+  dot.className   = "dot";
+  dot.style.left  = x + "px"; dot.style.top = y + "px";
+  dot.style.background = col; dot.textContent = n;
   scene.appendChild(dot);
-
-  const lbl     = document.createElement("div");
-  lbl.className = "dot-lbl";
-  lbl.style.left  = (x + 14) + "px";
-  lbl.style.top   = (y - 16) + "px";
-  lbl.style.color = n === 1 ? "#e63946" : "#2196f3";
-  lbl.textContent = `P${n} (${x}, ${y})`;
+  const lbl = document.createElement("div");
+  lbl.className   = "dot-lbl";
+  lbl.style.left  = (x + 13) + "px"; lbl.style.top = (y - 14) + "px";
+  lbl.style.color = col;
+  lbl.textContent = ["NW","NE","SW","SE"][n - 1] + ` (${x},${y})`;
   scene.appendChild(lbl);
 }
 
-/* ── guide markers inside SCENE (image-space coords) ── */
 function drawGuides(guides) {
-  document.querySelectorAll(".guide, .guide-lbl").forEach(el => el.remove());
+  document.querySelectorAll(".guide,.guide-lbl").forEach(el => el.remove());
   if (!guides) return;
   guides.forEach(g => {
-    const el     = document.createElement("div");
-    el.className = "guide";
-    el.style.left = g.x + "px";
-    el.style.top  = g.y + "px";
+    const el = document.createElement("div");
+    el.className = "guide"; el.style.left = g.x + "px"; el.style.top = g.y + "px";
     scene.appendChild(el);
-
-    const lbl     = document.createElement("div");
+    const lbl = document.createElement("div");
     lbl.className = "guide-lbl";
-    lbl.style.left = (g.x + 13) + "px";
-    lbl.style.top  = (g.y - 9)  + "px";
+    lbl.style.left = (g.x + 11) + "px"; lbl.style.top = (g.y - 8) + "px";
     lbl.textContent = g.label;
     scene.appendChild(lbl);
   });
 }
 
-/* ════════════════════════════════════════════════════
-   EVENTS
-   ════════════════════════════════════════════════════ */
-
-/* ── HOVER: only on viewport, positions chH/chV in VIEWPORT space ── */
 viewport.addEventListener("mousemove", e => {
-  if (isPan) return;   // handled separately by window.mousemove
-  const vr  = viewport.getBoundingClientRect();
-  const rx  = e.clientX - vr.left;
-  const ry  = e.clientY - vr.top;
+  if (isPan) return;
+  const vr = viewport.getBoundingClientRect();
   const { x, y } = toImg(e.clientX, e.clientY);
-
   if (inBounds(x, y)) {
-    badge.textContent   = `X: ${x}   |   Y: ${y}`;
-    chH.style.top       = ry + "px";
-    chV.style.left      = rx + "px";
-    chH.style.display   = "block";
-    chV.style.display   = "block";
+    badge.textContent = `X: ${x}   |   Y: ${y}`;
+    chH.style.top   = (e.clientY - vr.top)  + "px"; chH.style.display = "block";
+    chV.style.left  = (e.clientX - vr.left) + "px"; chV.style.display = "block";
   } else {
-    badge.textContent   = "X: —  |  Y: —";
-    chH.style.display   = "none";
-    chV.style.display   = "none";
+    badge.textContent = "X: —  |  Y: —";
+    chH.style.display = chV.style.display = "none";
   }
 });
 
 viewport.addEventListener("mouseleave", () => {
-  if (isPan) return;
-  badge.textContent = "X: —  |  Y: —";
-  chH.style.display = "none";
-  chV.style.display = "none";
+  if (!isPan) { badge.textContent = "X: —  |  Y: —"; chH.style.display = chV.style.display = "none"; }
 });
 
-/* ── PAN start: Ctrl+LMB or middle button ── */
 viewport.addEventListener("mousedown", e => {
   if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
-    isPan  = true;
-    panOX  = panX;
-    panOY  = panY;
-    panMX  = e.clientX;
-    panMY  = e.clientY;
-    viewport.style.cursor = "grabbing";
-    e.preventDefault();
+    isPan = true; panOX = panX; panOY = panY; panMX = e.clientX; panMY = e.clientY;
+    viewport.style.cursor = "grabbing"; e.preventDefault();
   }
 });
 
-/* ── PAN move: on window so drag outside viewport still works ── */
 window.addEventListener("mousemove", e => {
   if (!isPan) return;
   panX = panOX + (e.clientX - panMX);
   panY = panOY + (e.clientY - panMY);
-  clampPan();
-  applyTransform();
+  clampPan(); applyTransform();
 });
 
-/* ── PAN end ── */
-window.addEventListener("mouseup", e => {
-  if (!isPan) return;
-  isPan = false;
-  viewport.style.cursor = "crosshair";
+window.addEventListener("mouseup", () => {
+  if (isPan) { isPan = false; viewport.style.cursor = "crosshair"; }
 });
 
-/* ── CLICK: record point (only when not panning, not Ctrl) ── */
 viewport.addEventListener("click", e => {
-  if (e.button !== 0 || e.ctrlKey) return;
-  if (clicks.length >= 2) return;
+  if (e.button !== 0 || e.ctrlKey || isPan) return;
+  if (clicks.length >= 4) return;
   const { x, y } = toImg(e.clientX, e.clientY);
   if (!inBounds(x, y)) return;
   clicks.push({ x, y });
@@ -422,29 +284,23 @@ viewport.addEventListener("click", e => {
   ST.setComponentValue({ clicks });
 });
 
-/* ── ZOOM: mouse wheel, centered on cursor ── */
 viewport.addEventListener("wheel", e => {
   e.preventDefault();
-  const factor = e.deltaY < 0 ? 1.18 : (1 / 1.18);
-  const nr     = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
-  const vr     = viewport.getBoundingClientRect();
-  const mx     = e.clientX - vr.left;
-  const my     = e.clientY - vr.top;
+  const f  = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+  const nr = Math.max(MIN_S, Math.min(MAX_S, scale * f));
+  const vr = viewport.getBoundingClientRect();
+  const mx = e.clientX - vr.left, my = e.clientY - vr.top;
   panX = mx - (mx - panX) * (nr / scale);
   panY = my - (my - panY) * (nr / scale);
-  scale = nr;
-  clampPan();
-  applyTransform();
+  scale = nr; clampPan(); applyTransform();
 }, { passive: false });
 
-/* ── TOUCH pinch zoom ── */
-let _pinchDist = 0, _pinchScale = 1;
+let _pinchD = 0, _pinchS = 1;
 viewport.addEventListener("touchstart", e => {
   if (e.touches.length === 2) {
     const t = e.touches;
-    _pinchDist  = Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-    _pinchScale = scale;
-    e.preventDefault();
+    _pinchD = Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    _pinchS = scale; e.preventDefault();
   }
 }, { passive: false });
 
@@ -452,66 +308,43 @@ viewport.addEventListener("touchmove", e => {
   if (e.touches.length === 2) {
     const t  = e.touches;
     const d  = Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-    const nr = Math.max(MIN_SCALE, Math.min(MAX_SCALE, _pinchScale * (d / _pinchDist)));
-    const mx = (t[0].clientX + t[1].clientX) / 2;
-    const my = (t[0].clientY + t[1].clientY) / 2;
+    const nr = Math.max(MIN_S, Math.min(MAX_S, _pinchS * (d / _pinchD)));
+    const mx = (t[0].clientX + t[1].clientX) / 2, my = (t[0].clientY + t[1].clientY) / 2;
     const vr = viewport.getBoundingClientRect();
     const px = mx - vr.left, py = my - vr.top;
-    panX  = px - (px - panX) * (nr / scale);
-    panY  = py - (py - panY) * (nr / scale);
-    scale = nr;
-    clampPan();
-    applyTransform();
-    e.preventDefault();
+    panX = px - (px - panX) * (nr / scale);
+    panY = py - (py - panY) * (nr / scale);
+    scale = nr; clampPan(); applyTransform(); e.preventDefault();
   }
 }, { passive: false });
 
-/* ── toolbar buttons ── */
-function zoomBy(factor) {
-  const vw = viewport.clientWidth  / 2;
-  const vh = VIEWPORT_H / 2;
-  const nr = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
-  panX  = vw - (vw - panX) * (nr / scale);
-  panY  = vh - (vh - panY) * (nr / scale);
-  scale = nr;
-  clampPan();
-  applyTransform();
+function zoomBy(f) {
+  const vw = viewport.clientWidth / 2, vh = VP_H / 2;
+  const nr = Math.max(MIN_S, Math.min(MAX_S, scale * f));
+  panX = vw - (vw - panX) * (nr / scale);
+  panY = vh - (vh - panY) * (nr / scale);
+  scale = nr; clampPan(); applyTransform();
 }
 
 document.getElementById("btn-zin").onclick   = () => zoomBy(1.4);
 document.getElementById("btn-zout").onclick  = () => zoomBy(1 / 1.4);
-document.getElementById("btn-reset").onclick = () => {
-  scale = 1; panX = 0; panY = 0;
-  clampPan();
-  applyTransform();
-};
+document.getElementById("btn-reset").onclick = () => { scale = 1; panX = 0; panY = 0; clampPan(); applyTransform(); };
 
-/* ── image load ── */
 mapImg.addEventListener("load", () => {
   imgLoaded = true;
-  clampPan();
-  applyTransform();
-  const natH  = mapImg.naturalHeight;
-  const finalH = Math.min(Math.max(natH, 200), 600);
-  viewport.style.height = finalH + "px";
-  ST.setFrameHeight(finalH + 38 + 6);
+  const fh = Math.min(Math.max(mapImg.naturalHeight, 200), 600);
+  viewport.style.height = fh + "px";
+  ST.setFrameHeight(fh + 38 + 6);
+  clampPan(); applyTransform();
 });
 
-/* ── Streamlit RENDER_EVENT ── */
 let _lastSrc = "";
 ST.events.addEventListener(ST.RENDER_EVENT, e => {
   const a = e.detail.args || {};
-
-  if (a.image_src && a.image_src !== _lastSrc) {
-    _lastSrc      = a.image_src;
-    imgLoaded     = false;
-    mapImg.src    = a.image_src;
-  }
-
+  if (a.image_src && a.image_src !== _lastSrc) { _lastSrc = a.image_src; imgLoaded = false; mapImg.src = a.image_src; }
   if (a.guides) drawGuides(a.guides);
 });
 
-/* ── ready: announce immediately with fixed height ── */
 ST.setComponentReady();
 </script>
 </body>
@@ -521,29 +354,36 @@ ST.setComponentReady();
 with open(os.path.join(_DIR, "index.html"), "w", encoding="utf-8") as _fh:
     _fh.write(_COMPONENT_HTML)
 
-_picker = components.declare_component("spi_zoomcal_v2", path=_DIR)
+_picker = components.declare_component("spi_zoomcal_v3", path=_DIR)
+
+GCP_LABELS = ["NW — Kiri Atas (Barat Laut)", "NE — Kanan Atas (Timur Laut)",
+               "SW — Kiri Bawah (Barat Daya)", "SE — Kanan Bawah (Tenggara)"]
+GCP_COLORS = ["#e63946", "#2196f3", "#8bc34a", "#ff9800"]
 
 
-def _make_georef(px1, py1, lon1, lat1, px2, py2, lon2, lat2, px_min, py_min) -> dict:
-    return {
-        "lon": {"px1": int(px1), "lon1": float(lon1), "px2": int(px2), "lon2": float(lon2)},
-        "lat": {"py1": int(py1), "lat1": float(lat1), "py2": int(py2), "lat2": float(lat2)},
-        "px_min":  int(px_min),
-        "py_min":  int(py_min),
-        "bbox_geo": [
-            min(float(lon1), float(lon2)), min(float(lat1), float(lat2)),
-            max(float(lon1), float(lon2)), max(float(lat1), float(lat2)),
-        ],
-    }
+def _build_custom_georef(clicks: list, gcps_default: list, lon_vals: list, lat_vals: list,
+                          master_w: int, master_h: int) -> dict:
+    result_gcps = []
+    for i, gcp in enumerate(gcps_default):
+        px = clicks[i]["x"] if i < len(clicks) else gcp["px"]
+        py = clicks[i]["y"] if i < len(clicks) else gcp["py"]
+        result_gcps.append({"px": px, "py": py, "lon": lon_vals[i], "lat": lat_vals[i]})
+    return {"master_size": (master_w, master_h), "gcps": result_gcps}
 
 
 def render_calibration(img_bytes: bytes, island_key: str) -> None:
     default      = ISLAND_GEOREF[island_key]
+    gcps_default = default["gcps"]
+    master_w, master_h = default["master_size"]
+
     arr          = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
     h_img, w_img = arr.shape[:2]
 
-    rst_key    = f"cal_rst_{island_key}"
-    clicks_key = f"cal_clicks_{island_key}"
+    sx = w_img / master_w
+    sy = h_img / master_h
+
+    rst_key     = f"cal_rst_{island_key}"
+    clicks_key  = f"cal_clicks_{island_key}"
     img_b64_key = f"cal_b64_{island_key}"
 
     if rst_key    not in st.session_state: st.session_state[rst_key]    = 0
@@ -559,24 +399,25 @@ def render_calibration(img_bytes: bytes, island_key: str) -> None:
     clicks  = st.session_state[clicks_key]
 
     guides = [
-        {"x": default["lon"]["px1"], "y": default["lat"]["py1"], "label": "Default P1"},
-        {"x": default["lon"]["px2"], "y": default["lat"]["py2"], "label": "Default P2"},
+        {"x": g["px"] * sx, "y": g["py"] * sy, "label": lbl.split("—")[0].strip()}
+        for g, lbl in zip(gcps_default, GCP_LABELS)
     ]
 
     st.markdown(
-        "<p style='color:#8b949e;font-size:.82rem;margin-bottom:.8rem'>"
-        "Gunakan <b>scroll</b> untuk zoom terpusat pada kursor, "
-        "<b>Ctrl+drag</b> atau <b>klik-tengah</b> untuk menggeser. "
-        "Koordinat X/Y tampil <b>real-time</b> mengikuti posisi kursor."
-        "</p>",
+        f"<p style='color:#8b949e;font-size:.82rem;margin-bottom:.8rem'>"
+        f"Gambar: <b>{w_img}×{h_img}px</b>  |  Skala otomatis dari master "
+        f"<b>{master_w}×{master_h}px</b>  →  sx={sx:.3f}, sy={sy:.3f}<br>"
+        f"Lingkaran putus-putus = posisi GCP default yang sudah discale. "
+        f"Klik <b>4 sudut</b> secara berurutan: NW → NE → SW → SE."
+        f"</p>",
         unsafe_allow_html=True,
     )
 
     col_img, col_form = st.columns([3, 2], gap="large")
 
     with col_img:
-        rst_col, _ = st.columns([1, 3])
-        with rst_col:
+        rc, _ = st.columns([1, 3])
+        with rc:
             if st.button("Ulangi Titik", key=f"rst_{island_key}"):
                 st.session_state[clicks_key] = []
                 st.session_state[rst_key]   += 1
@@ -592,105 +433,86 @@ def render_calibration(img_bytes: bytes, island_key: str) -> None:
             incoming = result["clicks"]
             if len(incoming) > len(clicks):
                 st.session_state[clicks_key] = incoming
-                clicks = incoming
                 st.rerun()
 
+        n_recorded = len(clicks)
+        progress_html = ""
+        for i, (lbl, col) in enumerate(zip(GCP_LABELS, GCP_COLORS)):
+            if i < n_recorded:
+                c = clicks[i]
+                tag = f"px={c['x']} py={c['y']}"
+            else:
+                g   = gcps_default[i]
+                tag = f"px={round(g['px']*sx)} py={round(g['py']*sy)}  (default)"
+                col = "#6e7681"
+            progress_html += (
+                f"<div style='font-size:.68rem;color:{col};"
+                f"font-family:IBM Plex Mono,monospace;margin-top:3px'>"
+                f"{'✓' if i < n_recorded else '○'} GCP{i+1} {lbl.split('—')[0].strip()}  {tag}</div>"
+            )
         st.markdown(
-            f"<div style='font-family:IBM Plex Mono,monospace;font-size:.68rem;"
-            f"color:#6e7681;margin-top:.3rem'>"
-            f"Gambar: {w_img} × {h_img} px  |  Titik terekam: {len(clicks)}/2"
-            f"</div>",
+            f"<div style='background:#0d1117;border:1px solid #21262d;"
+            f"border-radius:5px;padding:8px 12px;margin-top:6px'>{progress_html}</div>",
             unsafe_allow_html=True,
         )
 
     with col_form:
-        has_p1 = len(clicks) > 0
-        has_p2 = len(clicks) > 1
+        lon_vals = []
+        lat_vals = []
 
-        px1 = clicks[0]["x"] if has_p1 else default["lon"]["px1"]
-        py1 = clicks[0]["y"] if has_p1 else default["lat"]["py1"]
-        px2 = clicks[1]["x"] if has_p2 else default["lon"]["px2"]
-        py2 = clicks[1]["y"] if has_p2 else default["lat"]["py2"]
+        for i, (gcp, lbl, col) in enumerate(zip(gcps_default, GCP_LABELS, GCP_COLORS)):
+            clicked = i < len(clicks)
+            px_show = clicks[i]["x"] if clicked else round(gcp["px"] * sx)
+            py_show = clicks[i]["y"] if clicked else round(gcp["py"] * sy)
+            c = col if clicked else "#6e7681"
 
-        def _badge(label, px, py, color, clicked):
-            c   = color if clicked else "#6e7681"
-            sfx = "" if clicked else "  (default)"
-            return (
-                f"<div style='font-family:IBM Plex Mono,monospace;font-size:.72rem;color:{c};"
-                f"background:#0d1117;border:1px solid #21262d;border-radius:4px;"
-                f"padding:4px 10px;margin-bottom:.5rem'>"
-                f"<b>{label}</b>  px={px}  py={py}{sfx}</div>"
+            st.markdown(
+                f"<div style='font-family:IBM Plex Mono,monospace;font-size:.7rem;"
+                f"color:{c};background:#0d1117;border:1px solid #21262d;"
+                f"border-radius:4px;padding:4px 10px;margin-bottom:4px;margin-top:{'1rem' if i>0 else '0'}'>"
+                f"<b>GCP{i+1} {lbl}</b><br>"
+                f"px={px_show}  py={py_show}{'  ✓' if clicked else '  (default)'}</div>",
+                unsafe_allow_html=True,
             )
+            ca, cb = st.columns(2)
+            with ca:
+                lon = st.number_input(f"Lon GCP{i+1}", value=float(gcp["lon"]),
+                                      step=0.01, format="%.4f", key=f"lon{i}_{island_key}")
+            with cb:
+                lat = st.number_input(f"Lat GCP{i+1}", value=float(gcp["lat"]),
+                                      step=0.01, format="%.4f", key=f"lat{i}_{island_key}")
+            lon_vals.append(lon)
+            lat_vals.append(lat)
 
-        st.markdown(
-            "<div style='font-family:IBM Plex Mono,monospace;font-size:.72rem;color:#8b949e;"
-            "text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid #21262d;"
-            "padding-bottom:.3rem;margin-bottom:.6rem'>"
-            "Titik 1  —  Kiri Atas (Barat Laut)</div>",
-            unsafe_allow_html=True,
+        n_clicked = len(clicks)
+        georef = _build_custom_georef(
+            clicks, gcps_default, lon_vals, lat_vals,
+            w_img, h_img,
         )
-        st.markdown(_badge("P1", px1, py1, "#e63946", has_p1), unsafe_allow_html=True)
-        c1a, c1b = st.columns(2)
-        with c1a:
-            lon1 = st.number_input("Longitude 1 (°E)", value=float(default["lon"]["lon1"]),
-                                   step=0.01, format="%.4f", key=f"lon1_{island_key}")
-        with c1b:
-            lat1 = st.number_input("Latitude 1 (°)", value=float(default["lat"]["lat1"]),
-                                   step=0.01, format="%.4f", key=f"lat1_{island_key}")
 
-        st.markdown(
-            "<div style='font-family:IBM Plex Mono,monospace;font-size:.72rem;color:#8b949e;"
-            "text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid #21262d;"
-            "padding-bottom:.3rem;margin-bottom:.6rem;margin-top:.9rem'>"
-            "Titik 2  —  Kanan Bawah (Tenggara)</div>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(_badge("P2", px2, py2, "#2196f3", has_p2), unsafe_allow_html=True)
-        c2a, c2b = st.columns(2)
-        with c2a:
-            lon2 = st.number_input("Longitude 2 (°E)", value=float(default["lon"]["lon2"]),
-                                   step=0.01, format="%.4f", key=f"lon2_{island_key}")
-        with c2b:
-            lat2 = st.number_input("Latitude 2 (°)", value=float(default["lat"]["lat2"]),
-                                   step=0.01, format="%.4f", key=f"lat2_{island_key}")
+        gcps_preview = georef["gcps"]
+        lons = [g["lon"] for g in gcps_preview]
+        lats = [g["lat"] for g in gcps_preview]
+        bbox_str = f"[{min(lons):.4f}, {min(lats):.4f}, {max(lons):.4f}, {max(lats):.4f}]"
 
-        st.markdown(
-            "<div style='font-family:IBM Plex Mono,monospace;font-size:.72rem;color:#8b949e;"
-            "text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid #21262d;"
-            "padding-bottom:.3rem;margin-bottom:.6rem;margin-top:.9rem'>"
-            "Margin Gambar</div>",
-            unsafe_allow_html=True,
-        )
-        cm1, cm2 = st.columns(2)
-        with cm1:
-            px_min = st.number_input("px_min", value=int(default.get("px_min", 0)),
-                                     min_value=0, step=1, key=f"pxmin_{island_key}")
-        with cm2:
-            py_min = st.number_input("py_min", value=int(default.get("py_min", 0)),
-                                     min_value=0, step=1, key=f"pymin_{island_key}")
-
-        georef  = _make_georef(px1, py1, lon1, lat1, px2, py2, lon2, lat2, px_min, py_min)
-        preview = (
-            f'"{island_key}": {{\n'
-            f'  "lon": {{"px1":{px1}, "lon1":{lon1:.4f},\n'
-            f'           "px2":{px2}, "lon2":{lon2:.4f}}},\n'
-            f'  "lat": {{"py1":{py1}, "lat1":{lat1:.4f},\n'
-            f'           "py2":{py2}, "lat2":{lat2:.4f}}},\n'
-            f'  "px_min":{px_min}, "py_min":{py_min},\n'
-            f'  "bbox_geo": [{georef["bbox_geo"][0]:.4f}, {georef["bbox_geo"][1]:.4f},\n'
-            f'               {georef["bbox_geo"][2]:.4f}, {georef["bbox_geo"][3]:.4f}]\n'
-            f'}}'
+        preview_lines = "\n".join(
+            f'  GCP{i+1}: px={g["px"]} py={g["py"]}  →  ({g["lon"]:.4f}°, {g["lat"]:.4f}°)'
+            for i, g in enumerate(gcps_preview)
         )
         st.markdown(
             f"<pre style='background:#0d1117;border:1px solid #21262d;border-radius:6px;"
-            f"padding:.6rem 1rem;font-family:IBM Plex Mono,monospace;font-size:.7rem;"
-            f"color:#79c0ff;overflow-x:auto;line-height:1.6;margin-top:.8rem'>{preview}</pre>",
+            f"padding:.6rem 1rem;font-family:IBM Plex Mono,monospace;font-size:.68rem;"
+            f"color:#79c0ff;overflow-x:auto;line-height:1.7;margin-top:.8rem'>"
+            f"master_size: {w_img} × {h_img}\n"
+            f"{preview_lines}\n"
+            f"bbox_geo: {bbox_str}</pre>",
             unsafe_allow_html=True,
         )
 
         btn_label = (
-            "Simpan Kalibrasi & Lanjut Proses" if (has_p1 and has_p2)
-            else "Simpan Nilai Manual & Lanjut Proses"
+            f"Simpan Kalibrasi ({n_clicked}/4 titik diklik) & Lanjut"
+            if n_clicked < 4
+            else "Simpan Kalibrasi 4-GCP & Lanjut Proses"
         )
         if st.button(btn_label, type="primary", use_container_width=True, key=f"save_{island_key}"):
             if "custom_georef" not in st.session_state:

@@ -60,7 +60,7 @@ def classify_grid(
             if len(lpx) == 0:
                 continue
 
-            med = np.median(lpx, axis=0)
+            med = np.mean(lpx, axis=0)
             cls, conf = classify_lab_with_conf(med, palette)
 
            

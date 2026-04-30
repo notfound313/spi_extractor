@@ -30,43 +30,61 @@ ISLAND_PROVINCES: dict[str, list[str]] = {
 
 ISLAND_GEOREF: dict[str, dict] = {
     "JAWA": {
-        "lon": {"px1": 50, "lon1": 105.2, "px2": 550, "lon2": 115.9},
-        "lat": {"py1": 30, "lat1": -5.7,  "py2": 230, "lat2": -8.80},
-        "px_min": 40, "py_min": 20,
-        "bbox_geo": [105.2,-8.8,115.9,-5.7],
-    },
-    "SUMATRA": {
-        "lon": {"px1": 50, "lon1": 95.2,  "px2": 550, "lon2": 109.12},
-        "lat": {"py1": 30, "lat1": 5.88,   "py2": 400, "lat2": -5.94},
-        "px_min": 10, "py_min": 20,
-        "bbox_geo": [ 95.2, -5.9, 109.1, 5.9],
+        "master_size": (912, 412),
+        "gcps": [
+            {"px":   0, "py":   0, "lon": 105.20, "lat": -5.70},
+            {"px": 910, "py":   0, "lon": 115.90, "lat": -5.70},
+            {"px":   0, "py": 409, "lon": 105.20, "lat": -8.80},
+            {"px": 910, "py": 409, "lon": 115.90, "lat": -8.80},
+        ],
     },
     "KALIMANTAN": {
-        "lon": {"px1": 50, "lon1": 108.69, "px2": 550, "lon2": 118.99},
-        "lat": {"py1": 30, "lat1": 4.41,   "py2": 420, "lat2": -4.7},
-        "px_min": 15, "py_min": 40,
-        "bbox_geo": [108.7, -4.7, 119.0, 4.4],
-    },
-    "SULAWESI": {
-        "lon": {"px1": 50, "lon1": 117.66, "px2": 450, "lon2": 126.91},
-        "lat": {"py1": 30, "lat1": 4.56,   "py2": 380, "lat2": -7.49},
-        "px_min": 20, "py_min": 20,
-        "bbox_geo": [117.7, -7.5, 126.9, 4.6],
-    },
-    "PAPUA": {
-        "lon": {"px1": 50, "lon1": 124.3, "px2": 550, "lon2": 141.01},
-        "lat": {"py1": 30, "lat1": 2.65,   "py2": 400, "lat2": -9.12},
-        "px_min": 40, "py_min": 20,
-        "bbox_geo": [124.3, -9.1, 141.0, 2.6]
+        "master_size": (383, 393),
+        "gcps": [
+            {"px":   0, "py":  37, "lon": 108.69, "lat":  4.41},
+            {"px": 380, "py":  37, "lon": 118.99, "lat":  4.41},
+            {"px":   0, "py": 390, "lon": 108.69, "lat": -4.70},
+            {"px": 380, "py": 390, "lon": 118.99, "lat": -4.70},
+        ],
     },
     "NUSA TENGGARA": {
-        "lon": {"px1": 87, "lon1": 114.43, "px2": 558, "lon2": 125.64},
-        "lat": {"py1": 78, "lat1": -8.06,  "py2": 240, "lat2": -10.92},
-        "px_min": 18, "py_min": 72,
-        "bbox_geo": [114.4, -10.9,  125.6, -8.1],
+        "master_size": (572, 262),
+        "gcps": [
+            {"px":   0, "py":   0, "lon": 114.43, "lat":  -8.06},
+            {"px": 568, "py":   0, "lon": 125.64, "lat":  -8.06},
+            {"px":   0, "py": 260, "lon": 114.43, "lat": -10.92},
+            {"px": 568, "py": 260, "lon": 125.64, "lat": -10.92},
+        ],
+    },
+    "PAPUA": {
+        "master_size": (380, 398),
+        "gcps": [
+            {"px":   0, "py":   0, "lon": 124.30, "lat":   2.65},
+            {"px": 378, "py":   0, "lon": 141.01, "lat":   2.65},
+            {"px":   0, "py": 394, "lon": 124.30, "lat":  -9.12},
+            {"px": 378, "py": 394, "lon": 141.01, "lat":  -9.12},
+        ],
+    },
+    "SULAWESI": {
+        "master_size": (384, 397),
+        "gcps": [
+            {"px":   0, "py":  34, "lon": 117.66, "lat":   4.56},
+            {"px": 382, "py":  34, "lon": 126.91, "lat":   4.56},
+            {"px":   0, "py": 394, "lon": 117.66, "lat":  -7.49},
+            {"px": 382, "py": 394, "lon": 126.91, "lat":  -7.49},
+        ],
+    },
+    "SUMATRA": {
+        "master_size": (380, 397),
+        "gcps": [
+            {"px":   0, "py":   0, "lon":  95.20, "lat":   5.88},
+            {"px": 378, "py":   0, "lon": 109.12, "lat":   5.88},
+            {"px":   0, "py": 394, "lon":  95.20, "lat":  -5.94},
+            {"px": 378, "py": 394, "lon": 109.12, "lat":  -5.94},
+        ],
     },
 }
-
+ 
 LEGEND: dict[int, dict] = {
     1: {
         "name": "Sangat Basah",  "spi_range": "> 2.0",
@@ -118,15 +136,8 @@ LEGEND: dict[int, dict] = {
         "stroke_width": 1.8,    "spin_rgb": [90, 0, 0],
     },
 }
-
-
+ 
 GEOJSON_URLS: list[str] = [
     "https://raw.githubusercontent.com/ans-4175/peta-indonesia-geojson/master/indonesia-prov.geojson",
 ]
-
-BOUNDARY_DEFAULT: dict = {
-    "stroke": "#333333",
-    "stroke-width": 2.0,
-    "fill": "none",
-    "fill-opacity": 0,
-}
+ 

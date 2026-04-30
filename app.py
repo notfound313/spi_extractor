@@ -11,9 +11,9 @@ import streamlit as st
 
 from config import ISLAND_GEOREF, LEGEND, GRID_PX
 from georef import (
-    build_transform, build_palette_lab,
+    build_homography, build_palette_lab,
     compute_grid_km, compute_resolution_m,
-    make_geo2px, make_px2geo,
+    gcp_bbox, make_geo2px, make_px2geo,
 )
 from masking import build_land_mask, extract_island_polygons
 from classification import build_geojson, classify_grid
@@ -32,62 +32,40 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
-
 html,body,[class*="css"]{font-family:'IBM Plex Sans',sans-serif}
-
 section[data-testid="stSidebar"]{background:#0f1117;border-right:1px solid #1e2130}
 section[data-testid="stSidebar"] *{color:#c9d1d9 !important}
 section[data-testid="stSidebar"] .stSelectbox label,
 section[data-testid="stSidebar"] .stSlider label{
   font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:#8b949e !important}
-
 .main .block-container{padding-top:1.6rem;padding-bottom:2rem;max-width:1200px}
-
 .stat-block{background:#161b22;border:1px solid #21262d;border-radius:6px;padding:.9rem 1.1rem;margin-bottom:.5rem}
 .stat-label{font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.15rem}
 .stat-value{font-family:'IBM Plex Mono',monospace;font-size:1.05rem;color:#e6edf3;font-weight:600}
 .stat-sub{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#6e7681;margin-top:.1rem}
-
 .section-head{
   font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#8b949e;
   text-transform:uppercase;letter-spacing:.12em;
   border-bottom:1px solid #21262d;padding-bottom:.3rem;
-  margin-bottom:.8rem;margin-top:1.4rem;
-}
-
-.step-indicator{
-  display:flex;align-items:center;gap:.5rem;
-  font-family:'IBM Plex Mono',monospace;font-size:.75rem;
-  margin-bottom:1.2rem;
-}
-.step-pill{
-  padding:4px 14px;border-radius:20px;font-size:.72rem;
-  font-family:'IBM Plex Mono',monospace;
-}
+  margin-bottom:.8rem;margin-top:1.4rem}
+.step-indicator{display:flex;align-items:center;gap:.5rem;font-family:'IBM Plex Mono',monospace;font-size:.75rem;margin-bottom:1.2rem}
+.step-pill{padding:4px 14px;border-radius:20px;font-size:.72rem;font-family:'IBM Plex Mono',monospace}
 .step-active{background:#1a3a5c;color:#58a6ff;border:1px solid #388bfd}
 .step-done{background:#0d2d10;color:#3fb950;border:1px solid #2ea043}
 .step-idle{background:#161b22;color:#6e7681;border:1px solid #21262d}
 .step-arrow{color:#30363d;font-size:.9rem}
-
 .legend-row{display:flex;align-items:center;gap:.5rem;padding:.25rem 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:#c9d1d9}
 .legend-count{margin-left:auto;color:#6e7681}
-
 .stDownloadButton>button{
   background:#21262d;color:#c9d1d9;border:1px solid #30363d;
   border-radius:6px;font-family:'IBM Plex Mono',monospace;
-  font-size:.78rem;padding:.35rem .9rem;width:100%;margin-bottom:.3rem;
-}
+  font-size:.78rem;padding:.35rem .9rem;width:100%;margin-bottom:.3rem}
 .stDownloadButton>button:hover{background:#30363d;border-color:#8b949e;color:#e6edf3}
-
 .stProgress>div>div{background:#388bfd}
 div[data-testid="stStatusWidget"]{display:none}
 </style>
 """, unsafe_allow_html=True)
 
-
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
 
 with st.sidebar:
     st.markdown("## SPI Grid Extractor")
@@ -109,7 +87,6 @@ with st.sidebar:
     use_province = st.checkbox("Spatial Join Provinsi", value=True)
 
     app_step = st.session_state.get("app_step", "calibrate")
-
     st.divider()
 
     if app_step == "process":
@@ -133,20 +110,11 @@ with st.sidebar:
             st.rerun()
 
 
-# ---------------------------------------------------------------------------
-# Header
-# ---------------------------------------------------------------------------
-
 st.markdown(
     "<h1 style='font-family:IBM Plex Mono,monospace;font-size:1.4rem;"
     "color:#e6edf3;font-weight:600;margin-bottom:.5rem'>SPI Grid Extractor</h1>",
     unsafe_allow_html=True,
 )
-
-
-# ---------------------------------------------------------------------------
-# Invalidate everything when file or island changes
-# ---------------------------------------------------------------------------
 
 file_sig = (
     f"{uploaded_file.name}_{uploaded_file.size}_{target_island}"
@@ -162,39 +130,24 @@ if file_sig and st.session_state.get("file_sig") != file_sig:
 
 app_step = st.session_state.get("app_step", "calibrate")
 
-
-# ---------------------------------------------------------------------------
-# Step indicator
-# ---------------------------------------------------------------------------
-
-cal_done  = "custom_georef" in st.session_state and target_island in st.session_state.get("custom_georef", {})
+cal_done  = bool(st.session_state.get("custom_georef", {}).get(target_island))
 proc_done = st.session_state.get("has_result", False)
 
-step1_cls = "step-done" if cal_done else "step-active" if app_step == "calibrate" else "step-idle"
-step2_cls = "step-active" if app_step == "process" and not proc_done else "step-done" if proc_done else "step-idle"
+s1_cls = "step-done" if cal_done else ("step-active" if app_step == "calibrate" else "step-idle")
+s2_cls = "step-active" if (app_step == "process" and not proc_done) else ("step-done" if proc_done else "step-idle")
 
 st.markdown(
     f"<div class='step-indicator'>"
-    f"<span class='step-pill {step1_cls}'>1. Kalibrasi Georef</span>"
+    f"<span class='step-pill {s1_cls}'>1. Kalibrasi Georef (4 GCP)</span>"
     f"<span class='step-arrow'>›</span>"
-    f"<span class='step-pill {step2_cls}'>2. Proses Ekstraksi</span>"
+    f"<span class='step-pill {s2_cls}'>2. Proses Ekstraksi</span>"
     f"</div>",
     unsafe_allow_html=True,
 )
 
-
-# ---------------------------------------------------------------------------
-# No file
-# ---------------------------------------------------------------------------
-
 if uploaded_file is None:
     st.info("Unggah citra peta dan pilih pulau target di sidebar untuk memulai.")
     st.stop()
-
-
-# ---------------------------------------------------------------------------
-# Cache image bytes once
-# ---------------------------------------------------------------------------
 
 if st.session_state.get("file_sig") == file_sig and "img_bytes_cache" in st.session_state:
     img_bytes = st.session_state["img_bytes_cache"]
@@ -208,7 +161,8 @@ else:
 # ============================================================================
 
 if app_step == "calibrate":
-    st.markdown("<div class='section-head'>Kalibrasi Georeferensi</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-head'>Kalibrasi Georeferensi  —  4-Point Homography</div>",
+                unsafe_allow_html=True)
     render_calibration(img_bytes, target_island)
     st.stop()
 
@@ -224,36 +178,36 @@ georef_cfg = (
     or ISLAND_GEOREF[target_island]
 )
 
+gcps       = georef_cfg["gcps"]
+master_w, master_h = georef_cfg["master_size"]
+
 if not st.session_state.get("has_result"):
-    slug   = target_island.lower().replace(" ", "_")
-    arr    = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+    arr      = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
     h_p, w_p = arr.shape[:2]
 
-    cal = st.session_state.get("custom_georef", {}).get(target_island, {})
-    cfg_lon = cal.get("lon", georef_cfg["lon"])
-    cfg_lat = cal.get("lat", georef_cfg["lat"])
+    sx = w_p / master_w
+    sy = h_p / master_h
 
+    gcp_summary = "  |  ".join(
+        f"GCP{i+1} px={round(g['px']*sx)} py={round(g['py']*sy)} → ({g['lon']:.2f}°, {g['lat']:.2f}°)"
+        for i, g in enumerate(gcps)
+    )
     st.markdown(
-        f"<div style='font-family:IBM Plex Mono,monospace;font-size:.75rem;"
+        f"<div style='font-family:IBM Plex Mono,monospace;font-size:.72rem;"
         f"color:#c9d1d9;background:#0d1117;border:1px solid #21262d;"
-        f"border-radius:6px;padding:.6rem 1rem;margin-bottom:1rem'>"
-        f"<span style='color:#3fb950'>Georef aktif</span>  "
-        f"P1 px={cfg_lon['px1']} py={cfg_lat['py1']} → "
-        f"({cfg_lon['lon1']:.4f}°E, {cfg_lat['lat1']:.4f}°)  &nbsp;|&nbsp;  "
-        f"P2 px={cfg_lon['px2']} py={cfg_lat['py2']} → "
-        f"({cfg_lon['lon2']:.4f}°E, {cfg_lat['lat2']:.4f}°)</div>",
+        f"border-radius:6px;padding:.6rem 1rem;margin-bottom:1rem;overflow-x:auto;white-space:nowrap'>"
+        f"<span style='color:#3fb950'>Homography GCPs aktif</span>  "
+        f"(sx={sx:.3f} sy={sy:.3f})  &nbsp;  {gcp_summary}</div>",
         unsafe_allow_html=True,
     )
 
     col_prev, col_settings = st.columns([3, 1], gap="large")
-
     with col_prev:
         st.image(
             cv2.cvtColor(arr, cv2.COLOR_BGR2RGB),
             caption=f"{uploaded_file.name}   {w_p}×{h_p}px",
             use_container_width=True,
         )
-
     with col_settings:
         st.markdown("<div class='section-head'>Pengaturan</div>", unsafe_allow_html=True)
 
@@ -264,12 +218,12 @@ if not st.session_state.get("has_result"):
                 unsafe_allow_html=True,
             )
 
-        _sbox("Pulau", target_island)
+        _sbox("Pulau",       target_island)
         _sbox("Ukuran Grid", f"{grid_px}px")
+        _sbox("Skala Auto",  f"sx={sx:.3f} / sy={sy:.3f}")
         _sbox("Spatial Join", "Aktif" if use_province else "Nonaktif")
 
         st.markdown("<div style='height:.5rem'></div>", unsafe_allow_html=True)
-
         if st.button("Mulai Proses Ekstraksi", type="primary", use_container_width=True):
             st.session_state["run_process"] = True
             st.rerun()
@@ -283,7 +237,7 @@ if not st.session_state.get("has_result"):
 # ---------------------------------------------------------------------------
 
 if st.session_state.get("run_process") and not st.session_state.get("has_result"):
-    slug = target_island.lower().replace(" ", "_")
+    slug    = target_island.lower().replace(" ", "_")
     file_id = f"{file_sig}_{grid_px}_{use_province}"
 
     prog_bar    = st.progress(0, text="Memulai proses...")
@@ -300,28 +254,32 @@ if st.session_state.get("run_process") and not st.session_state.get("has_result"
 
     prog_bar.progress(5, text="Membaca gambar...")
     _log("Membaca gambar...")
-    nparr = np.frombuffer(img_bytes, np.uint8)
-    img   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
+    nparr        = np.frombuffer(img_bytes, np.uint8)
+    img          = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     h_img, w_img = img.shape[:2]
     img_hsv      = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     img_lab      = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
 
-    prog_bar.progress(10, text="Georeferensi...")
-    _log("Membangun transform georeferensi...")
-    lon_scale, lon_offset, lat_scale, lat_offset = build_transform(georef_cfg)
-    px2geo  = make_px2geo(lon_scale, lon_offset, lat_scale, lat_offset)
-    geo2px  = make_geo2px(lon_scale, lon_offset, lat_scale, lat_offset)
-    bbox    = georef_cfg["bbox_geo"]
-    lat_mid = (bbox[1] + bbox[3]) / 2
+    prog_bar.progress(10, text="Homography + auto-scaling...")
+    _log("Membangun homografi 4-titik & skala otomatis...")
 
-    m_per_px_x, m_per_px_y = compute_resolution_m(lon_scale, lat_scale, lat_mid)
-    km_x, km_y             = compute_grid_km(lon_scale, lat_scale, lat_mid, grid_px)
+    gcps       = georef_cfg["gcps"]
+    master_w, master_h = georef_cfg["master_size"]
+
+    H_px2geo, H_geo2px, sx, sy = build_homography(gcps, w_img, h_img, master_w, master_h)
+    px2geo = make_px2geo(H_px2geo)
+    geo2px = make_geo2px(H_geo2px)
+
+    lon_min, lat_min, lon_max, lat_max = gcp_bbox(gcps)
+    lat_mid = (lat_min + lat_max) / 2
+
+    m_per_px_x, m_per_px_y = compute_resolution_m(gcps, sx, sy)
+    km_x, km_y             = compute_grid_km(gcps, sx, sy, grid_px)
 
     prog_bar.progress(20, text="Masking daratan...")
     _log("Memisahkan daratan dari lautan...")
-    land, sea    = build_land_mask(img, img_hsv, georef_cfg)
-    island_rings = extract_island_polygons(land, px2geo, lat_scale, lon_scale, lat_mid)
+    land, sea    = build_land_mask(img, img_hsv)
+    island_rings = extract_island_polygons(land, px2geo)
 
     processed_provs = []
     if use_province:
@@ -393,12 +351,14 @@ if st.session_state.get("run_process") and not st.session_state.get("has_result"
             "km_x":         km_x,
             "km_y":         km_y,
             "grid_px":      grid_px,
+            "sx":           sx,
+            "sy":           sy,
             "total_grids":  total_grids,
             "coverage_km2": coverage_km2,
-            "lon_min":      min(all_lons) if all_lons else bbox[0],
-            "lon_max":      max(all_lons) if all_lons else bbox[2],
-            "lat_min":      min(all_lats) if all_lats else bbox[1],
-            "lat_max":      max(all_lats) if all_lats else bbox[3],
+            "lon_min":      min(all_lons) if all_lons else lon_min,
+            "lon_max":      max(all_lons) if all_lons else lon_max,
+            "lat_min":      min(all_lats) if all_lats else lat_min,
+            "lat_max":      max(all_lats) if all_lats else lat_max,
             "t_elapsed":    t_elapsed,
         },
     })
@@ -446,7 +406,8 @@ with col_map:
         caption=(
             f"{img_name}   {s['w_img']}×{s['h_img']}px  |  "
             f"{s['m_per_px_x']:.0f}m/px × {s['m_per_px_y']:.0f}m/px\n"
-            f"Grid {s['grid_px']}px ≈ {s['km_x']:.1f}km × {s['km_y']:.1f}km"
+            f"Grid {s['grid_px']}px ≈ {s['km_x']:.1f}km × {s['km_y']:.1f}km  |  "
+            f"Scale sx={s['sx']:.3f} sy={s['sy']:.3f}"
         ),
         use_container_width=True,
     )
@@ -457,6 +418,7 @@ with col_info:
     _stat("Dimensi Gambar",
           f"{s['w_img']} × {s['h_img']} px",
           f"{s['m_per_px_x']:.0f} m/px × {s['m_per_px_y']:.0f} m/px")
+    _stat("Skala Otomatis", f"sx={s['sx']:.3f}  sy={s['sy']:.3f}")
     _stat("Ukuran Grid",    f"{s['grid_px']}px ≈ {s['km_x']:.1f} × {s['km_y']:.1f} km")
     _stat("Grid Cells",     f"{s['total_grids']:,}")
     _stat("Coverage",       f"~{s['coverage_km2']:,.0f} km²")
