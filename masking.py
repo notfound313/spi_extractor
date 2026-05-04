@@ -10,7 +10,9 @@ Px2Geo = Callable[[float, float], Tuple[float, float]]
 
 def build_sea_mask(img: np.ndarray, hsv: np.ndarray) -> np.ndarray:
     h, w      = img.shape[:2]
-    candidate = cv2.inRange(hsv, (90, 15, 50), (120, 210, 240))
+    sea_blue  = cv2.inRange(hsv, (90, 15, 50), (120, 215, 245))
+    sea_white = cv2.inRange(hsv, (0,  0, 170), (180, 30, 255))
+    candidate = cv2.bitwise_or(sea_blue, sea_white)
     padded    = cv2.copyMakeBorder(candidate, 1, 1, 1, 1, cv2.BORDER_CONSTANT, value=255)
     flood     = padded.copy()
 

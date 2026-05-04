@@ -295,7 +295,7 @@ if st.session_state.get("run_process") and not st.session_state.get("has_result"
         prog_bar.progress(min(pct, 85), text=f"Klasifikasi grid {cur:,} / {tot:,}...")
 
     features, class_count = classify_grid(
-        img_lab, land, island_rings, palette, px2geo,
+        img_lab, land, palette, px2geo,
         processed_provs if use_province else [],
         grid_px, progress_callback=_cls_prog,
     )
