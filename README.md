@@ -16,6 +16,7 @@ spi_extractor/
 ├── spatial.py          # Unduh batas provinsi & spatial join (point-in-polygon)
 ├── classification.py   # Klasifikasi grid warna ke kategori SPI + build GeoJSON
 ├── visualization.py    # Render peta output PNG dengan legenda
+├── calibaration.py     # Kalibrasi koodinat pixel dalam gambar
 └── requirements.txt    # Dependensi Python
 ```
 
