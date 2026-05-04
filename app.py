@@ -156,10 +156,6 @@ else:
     st.session_state["img_bytes_cache"] = img_bytes
 
 
-# ============================================================================
-# STEP 1 — KALIBRASI
-# ============================================================================
-
 if app_step == "calibrate":
     st.markdown("<div class='section-head'>Kalibrasi Georeferensi  —  4-Point Homography</div>",
                 unsafe_allow_html=True)
@@ -167,9 +163,6 @@ if app_step == "calibrate":
     st.stop()
 
 
-# ============================================================================
-# STEP 2 — PROSES EKSTRAKSI
-# ============================================================================
 
 st.markdown("<div class='section-head'>Proses Ekstraksi SPI</div>", unsafe_allow_html=True)
 
@@ -232,9 +225,6 @@ if not st.session_state.get("has_result"):
         st.stop()
 
 
-# ---------------------------------------------------------------------------
-# Pipeline
-# ---------------------------------------------------------------------------
 
 if st.session_state.get("run_process") and not st.session_state.get("has_result"):
     slug    = target_island.lower().replace(" ", "_")
@@ -309,7 +299,7 @@ if st.session_state.get("run_process") and not st.session_state.get("has_result"
 
     prog_bar.progress(92, text="Render peta...")
     _log("Merender peta output...")
-    vis_img       = build_output_image(sea, features, island_rings, h_img, w_img, geo2px, scale=3)
+    vis_img       = build_output_image(sea, features, island_rings, h_img, w_img, geo2px, scale=3, gcps=gcps)
     _, vis_buf    = cv2.imencode(".png", vis_img)
     vis_png_bytes = vis_buf.tobytes()
 
