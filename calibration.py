@@ -624,9 +624,9 @@ def render_calibration(img_bytes: bytes, island_key: str) -> None:
         )
 
         btn_label = (
-            f"Simpan Kalibrasi ({n_clicked}/4 titik diklik) & Lanjut"
+            f"Simpan Kalibrasi ({n_clicked}/4 titik diklik)"
             if n_clicked < 4
-            else "Simpan Kalibrasi 4-GCP & Lanjut Proses"
+            else "Lanjut Proses"
         )
         if st.button(btn_label, type="primary", use_container_width=True, key=f"save_{island_key}"):
             if "custom_georef" not in st.session_state:
