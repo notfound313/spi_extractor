@@ -55,6 +55,9 @@ def classify_grid(
 
             prov_name = find_province(lon_c, lat_c, processed_provs) if processed_provs else "Tidak Diketahui"
 
+            if prov_name == "Luar Batas / Pesisir":
+                continue
+
             class_count[cls] += 1
 
             lon_w, lat_n = px2geo(x,        y)
