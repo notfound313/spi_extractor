@@ -371,6 +371,18 @@ def _build_custom_georef(clicks: list, gcps_default: list, lon_vals: list, lat_v
     return {"master_size": (master_w, master_h), "gcps": result_gcps}
 
 
+def _dms_to_dd(degrees: int, minutes: int, seconds: float, direction: str) -> float:
+    """Konversi Degrees Minutes Seconds ke Decimal Degrees."""
+    if minutes < 0 or minutes >= 60:
+        raise ValueError("Menit harus 0–59")
+    if seconds < 0 or seconds >= 60:
+        raise ValueError("Detik harus 0–59.999")
+    dd = abs(int(degrees)) + minutes / 60.0 + seconds / 3600.0
+    if direction in ("S", "W"):
+        dd = -dd
+    return round(dd, 6)
+
+
 def render_calibration(img_bytes: bytes, island_key: str) -> None:
     default      = ISLAND_GEOREF[island_key]
     gcps_default = default["gcps"]
@@ -474,6 +486,15 @@ def render_calibration(img_bytes: bytes, island_key: str) -> None:
                 f"px={px_show}  py={py_show}{'  ✓' if clicked else '  (default)'}</div>",
                 unsafe_allow_html=True,
             )
+
+            
+            _pend_lon = f"dms_pend_lon{i}_{island_key}"
+            _pend_lat = f"dms_pend_lat{i}_{island_key}"
+            if _pend_lon in st.session_state:
+                st.session_state[f"lon{i}_{island_key}"] = st.session_state.pop(_pend_lon)
+            if _pend_lat in st.session_state:
+                st.session_state[f"lat{i}_{island_key}"] = st.session_state.pop(_pend_lat)
+
             ca, cb = st.columns(2)
             with ca:
                 lon = st.number_input(f"Lon GCP{i+1}", value=float(gcp["lon"]),
@@ -481,6 +502,99 @@ def render_calibration(img_bytes: bytes, island_key: str) -> None:
             with cb:
                 lat = st.number_input(f"Lat GCP{i+1}", value=float(gcp["lat"]),
                                       step=0.01, format="%.4f", key=f"lat{i}_{island_key}")
+
+            # Konverter DMS ke DD 
+            with st.expander(f" Input DMS untuk GCP{i+1}", expanded=False):
+                st.markdown(
+                    "<span style='font-size:.72rem;color:#8b949e'>"
+                    "Isi kolom DMS lalu klik <b>Konversi ke DD</b> untuk memperbarui "
+                    "nilai Lon/Lat di atas.</span>",
+                    unsafe_allow_html=True,
+                )
+
+                # Longitude DMS
+                st.markdown(
+                    "<span style='font-size:.72rem;color:#79c0ff'>Longitude</span>",
+                    unsafe_allow_html=True,
+                )
+                ld1, ld2, ld3, ld4 = st.columns([2, 2, 2, 2], gap="small")
+                with ld1:
+                    dms_lon_d = st.number_input(
+                        "Derajat °", min_value=0, max_value=180, value=int(abs(gcp["lon"])),
+                        step=1, key=f"dms_ld{i}_{island_key}",
+                    )
+                with ld2:
+                    dms_lon_m = st.number_input(
+                        "Menit ′", min_value=0, max_value=59, value=0,
+                        step=1, key=f"dms_lm{i}_{island_key}",
+                    )
+                with ld3:
+                    dms_lon_s = st.number_input(
+                        "Detik ″", min_value=0.0, max_value=59.999, value=0.0,
+                        step=0.1, format="%.3f", key=f"dms_ls{i}_{island_key}",
+                    )
+                with ld4:
+                    dms_lon_dir = st.selectbox(
+                        "Arah", ["E", "W"],
+                        index=0 if gcp["lon"] >= 0 else 1,
+                        key=f"dms_ldir{i}_{island_key}",
+                    )
+
+                # Latitude DMS
+                st.markdown(
+                    "<span style='font-size:.72rem;color:#79c0ff'>Latitude</span>",
+                    unsafe_allow_html=True,
+                )
+                la1, la2, la3, la4 = st.columns([2, 2, 2, 2], gap="small")
+                with la1:
+                    dms_lat_d = st.number_input(
+                        "Derajat °", min_value=0, max_value=90, value=int(abs(gcp["lat"])),
+                        step=1, key=f"dms_atd{i}_{island_key}",
+                    )
+                with la2:
+                    dms_lat_m = st.number_input(
+                        "Menit ′", min_value=0, max_value=59, value=0,
+                        step=1, key=f"dms_atm{i}_{island_key}",
+                    )
+                with la3:
+                    dms_lat_s = st.number_input(
+                        "Detik ″", min_value=0.0, max_value=59.999, value=0.0,
+                        step=0.1, format="%.3f", key=f"dms_ats{i}_{island_key}",
+                    )
+                with la4:
+                    dms_lat_dir = st.selectbox(
+                        "Arah", ["N", "S"],
+                        index=1 if gcp["lat"] < 0 else 0,
+                        key=f"dms_atdir{i}_{island_key}",
+                    )
+
+               
+                try:
+                    _prev_lon = _dms_to_dd(dms_lon_d, dms_lon_m, dms_lon_s, dms_lon_dir)
+                    _prev_lat = _dms_to_dd(dms_lat_d, dms_lat_m, dms_lat_s, dms_lat_dir)
+                    st.markdown(
+                        f"<div style='font-family:IBM Plex Mono,monospace;font-size:.70rem;"
+                        f"color:#3fb950;background:#0d1117;border:1px solid #2ea043;"
+                        f"border-radius:4px;padding:4px 10px;margin-top:4px'>"
+                        f"Preview → Lon: <b>{_prev_lon:.6f}°</b> &nbsp;|&nbsp; "
+                        f"Lat: <b>{_prev_lat:.6f}°</b></div>",
+                        unsafe_allow_html=True,
+                    )
+                    _dms_valid = True
+                except ValueError as _err:
+                    st.error(f"Input tidak valid: {_err}")
+                    _dms_valid = False
+
+                if st.button(
+                    "Konversi ke DD ",
+                    key=f"dms_conv{i}_{island_key}",
+                    disabled=not _dms_valid,
+                    use_container_width=True,
+                ):
+                    st.session_state[_pend_lon] = _prev_lon
+                    st.session_state[_pend_lat] = _prev_lat
+                    st.rerun()
+            
             lon_vals.append(lon)
             lat_vals.append(lat)
 
