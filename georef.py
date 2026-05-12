@@ -26,8 +26,8 @@ def build_homography(
     master_w: int,
     master_h: int,
 ) -> Tuple[np.ndarray, np.ndarray, float, float]:
-    sx = img_w / img_w
-    sy = img_h / img_h
+    sx = img_w / master_w
+    sy = img_h / master_h
     scaled = _scale_gcps(gcps, sx, sy)
 
     src = np.float64([[g["px"], g["py"]] for g in scaled])

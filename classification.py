@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Callable, List, Tuple
 
 import numpy as np
+import cv2
 
 from config import LEGEND
 from georef import classify_lab_with_conf
@@ -11,6 +12,25 @@ from spatial import find_province, ProvinceRecord
 Px2Geo = Callable[[float, float], Tuple[float, float]]
 
 _LAND_RATIO_THRESHOLD = 0.25
+
+_ADMIN_LINE_BGR = np.array(
+    [[217,  90,   5],  
+     [103, 125, 124],
+     [151, 141, 117],
+     [197, 90, 14],
+     [140, 89, 50],
+     [173, 86, 30],
+     [93, 112, 111],
+     [99,110,110]], 
+    dtype=np.uint8,
+).reshape(-1, 1, 3)
+
+_ADMIN_LINE_LAB: np.ndarray = (
+    cv2.cvtColor(_ADMIN_LINE_BGR, cv2.COLOR_BGR2LAB)
+    .reshape(-1, 3)
+    .astype(np.float32)
+)
+_ADMIN_DIST_THRESHOLD: float = 20.5
 
 
 def classify_grid(
@@ -45,6 +65,14 @@ def classify_grid(
                 continue
 
             lpx = img_lab[y : y + grid, x : x + grid][pm == 255]
+            if len(lpx) == 0:
+                continue
+
+            valid_mask = np.ones(len(lpx), dtype=bool)
+            for admin_lab in _ADMIN_LINE_LAB:
+                dists = np.linalg.norm(lpx.astype(np.float32) - admin_lab, axis=1)
+                valid_mask &= dists > _ADMIN_DIST_THRESHOLD
+            lpx = lpx[valid_mask]
             if len(lpx) == 0:
                 continue
 
