@@ -12,6 +12,7 @@ from spatial import find_province, ProvinceRecord
 Px2Geo = Callable[[float, float], Tuple[float, float]]
 
 _LAND_RATIO_THRESHOLD = 0.25
+_MIN_CLEAN_PIXELS: int = 2
 
 _ADMIN_LINE_BGR = np.array(
     [[217,  90,   5],  
@@ -30,7 +31,8 @@ _ADMIN_LINE_LAB: np.ndarray = (
     .reshape(-1, 3)
     .astype(np.float32)
 )
-_ADMIN_DIST_THRESHOLD: float = 20.5
+_ADMIN_DIST_THRESHOLD: float = 18
+_ADMIN_DIST_THRESHOLD_SQ: float = _ADMIN_DIST_THRESHOLD ** 2
 
 
 def classify_grid(
@@ -68,11 +70,11 @@ def classify_grid(
             if len(lpx) == 0:
                 continue
 
-            valid_mask = np.ones(len(lpx), dtype=bool)
-            for admin_lab in _ADMIN_LINE_LAB:
-                dists = np.linalg.norm(lpx.astype(np.float32) - admin_lab, axis=1)
-                valid_mask &= dists > _ADMIN_DIST_THRESHOLD
-            lpx = lpx[valid_mask]
+            lpx_f    = lpx.astype(np.float32)                             
+            diffs    = lpx_f[:, np.newaxis, :] - _ADMIN_LINE_LAB          
+            sq_dists = (diffs * diffs).sum(axis=2)                      
+            min_sq   = sq_dists.min(axis=1)                           
+            lpx      = lpx[min_sq > _ADMIN_DIST_THRESHOLD_SQ]
             if len(lpx) == 0:
                 continue
 
