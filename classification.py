@@ -34,6 +34,24 @@ _ADMIN_LINE_LAB: np.ndarray = (
 _ADMIN_DIST_THRESHOLD: float = 18
 _ADMIN_DIST_THRESHOLD_SQ: float = _ADMIN_DIST_THRESHOLD ** 2
 
+def _build_admin_mask(img_lab: np.ndarray) -> np.ndarray:   
+    h, w   = img_lab.shape[:2]
+    lab_f  = img_lab.reshape(-1, 3).astype(np.float32)   
+    min_sq = np.full(h * w, np.inf, dtype=np.float32)  
+ 
+    for admin_lab in _ADMIN_LINE_LAB:                    
+        diff = lab_f - admin_lab                         
+        sq   = (diff * diff).sum(axis=1)       
+        np.minimum(min_sq, sq, out=min_sq)              
+ 
+    is_admin = (min_sq <= _ADMIN_DIST_THRESHOLD_SQ).reshape(h, w).astype(np.uint8)
+ 
+   
+    kernel   = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    is_admin = cv2.dilate(is_admin, kernel, iterations=1)
+ 
+    return is_admin.astype(bool)   
+
 
 def classify_grid(
     img_lab: np.ndarray,
@@ -47,6 +65,7 @@ def classify_grid(
     h, w = land.shape
     features: List[dict] = []
     class_count: dict[int, int] = {k: 0 for k in LEGEND}
+    admin_mask = _build_admin_mask(img_lab)
 
     ys          = range(0, h, grid)
     xs          = range(0, w, grid)
@@ -66,8 +85,11 @@ def classify_grid(
             if total_pixels == 0 or land_pixels / total_pixels < _LAND_RATIO_THRESHOLD:
                 continue
 
-            lpx = img_lab[y : y + grid, x : x + grid][pm == 255]
-            if len(lpx) == 0:
+            am_patch = admin_mask[y : y + grid, x : x + grid]  
+            usable   = (pm == 255) & ~am_patch                 
+ 
+            lpx = img_lab[y : y + grid, x : x + grid][usable]
+            if len(lpx) < _MIN_CLEAN_PIXELS:              
                 continue
 
             lpx_f    = lpx.astype(np.float32)                             
