@@ -19,8 +19,7 @@ _CLOSE_ITER_MAIN   = 3
 _CLOSE_ITER_SEA    = 2       
 
 
-def _smooth_contour_gaussian(cnt: np.ndarray, window: int = 9) -> np.ndarray:
-    
+def _smooth_contour_gaussian(cnt: np.ndarray, window: int = 9) -> np.ndarray:    
     pts = cnt.reshape(-1, 2).astype(np.float32)
     n   = len(pts)
     if n < window * 3:          
@@ -54,13 +53,9 @@ def _fill_land_holes(land: np.ndarray) -> np.ndarray:
 
 
 def build_sea_mask(img: np.ndarray, hsv: np.ndarray) -> np.ndarray: 
-    h, w = img.shape[:2]
-
-    
-    sea_blue  = cv2.inRange(hsv, ( 88,  12,  40), (126, 230, 255))
-    # White legend / margins
-    sea_white = cv2.inRange(hsv, (  0,   0, 165), (180,  35, 255))
-    # Light-grey axis ticks
+    h, w = img.shape[:2]    
+    sea_blue  = cv2.inRange(hsv, ( 88,  12,  40), (126, 230, 255))    
+    sea_white = cv2.inRange(hsv, (  0,   0, 165), (180,  35, 255))    
     sea_grey  = cv2.inRange(hsv, (  0,   0, 140), (180,  20, 200))
 
     candidate = cv2.bitwise_or(sea_blue,
@@ -74,7 +69,6 @@ def build_sea_mask(img: np.ndarray, hsv: np.ndarray) -> np.ndarray:
                                  cv2.BORDER_CONSTANT, value=255)
     flood  = padded.copy()
 
-    # 16 seeds spread across all four edges
     seeds = []
     for frac in (0, 0.25, 0.5, 0.75, 1.0):
         seeds += [
