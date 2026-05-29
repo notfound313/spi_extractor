@@ -24,7 +24,7 @@ ISLAND_PROVINCES: dict[str, list[str]] = {
         "PAPUA BARAT", "PAPUA","MALUKU", "MALUKU UTARA"
     ],
     "NUSA TENGGARA": [
-        "BALI", "NUSATENGGARA BARAT", "NUSATENGGARA TIMUR"
+        "BALI", "NUSATENGGARA BARAT", "NUSA TENGGARA TIMUR", "MALUKU"
     ],
 }
 
