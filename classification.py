@@ -14,15 +14,20 @@ Px2Geo = Callable[[float, float], Tuple[float, float]]
 _LAND_RATIO_THRESHOLD = 0.25
 _MIN_CLEAN_PIXELS: int = 2
 
+# Erosi land mask untuk sampling pixel — menghindari pixel tepian pantai
+# yang termasuk dalam land mask akibat MORPH_CLOSE di build_land_mask
+_COAST_ERODE_K:    int = 3   # ukuran kernel erosi pantai
+_COAST_ERODE_ITER: int = 2   # iterasi erosi; naikkan jika artefak pantai masih muncul
+
 _ADMIN_LINE_BGR = np.array(
-    [[217,  90,   5],  
+    [[217,  90,   5],
      [103, 125, 124],
      [151, 141, 117],
-     [197, 90, 14],
-     [140, 89, 50],
-     [173, 86, 30],
-     [93, 112, 111],
-     [99,110,110]], 
+     [197,  90,  14],
+     [140,  89,  50],
+     [173,  86,  30],
+     [ 93, 112, 111],
+     [ 99, 110, 110]],
     dtype=np.uint8,
 ).reshape(-1, 1, 3)
 
@@ -31,28 +36,45 @@ _ADMIN_LINE_LAB: np.ndarray = (
     .reshape(-1, 3)
     .astype(np.float32)
 )
-_ADMIN_DIST_THRESHOLD: float = 18
+_ADMIN_DIST_THRESHOLD: float    = 18
 _ADMIN_DIST_THRESHOLD_SQ: float = _ADMIN_DIST_THRESHOLD ** 2
 
-def _build_admin_mask(img_lab: np.ndarray) -> np.ndarray:   
+
+# ---------------------------------------------------------------------------
+# Helper: filter pixel berdasarkan kemiripan warna ke garis admin
+# ---------------------------------------------------------------------------
+def _strip_admin_colors(lpx: np.ndarray) -> np.ndarray:
+    """Hapus pixel yang secara warna mirip dengan garis administrasi."""
+    if len(lpx) == 0:
+        return lpx
+    lpx_f    = lpx.astype(np.float32)
+    diffs    = lpx_f[:, np.newaxis, :] - _ADMIN_LINE_LAB   # (N, K, 3)
+    sq_dists = (diffs * diffs).sum(axis=2)                  # (N, K)
+    min_sq   = sq_dists.min(axis=1)                         # (N,)
+    return lpx[min_sq > _ADMIN_DIST_THRESHOLD_SQ]
+
+
+def _build_admin_mask(img_lab: np.ndarray) -> np.ndarray:
     h, w   = img_lab.shape[:2]
-    lab_f  = img_lab.reshape(-1, 3).astype(np.float32)   
-    min_sq = np.full(h * w, np.inf, dtype=np.float32)  
- 
-    for admin_lab in _ADMIN_LINE_LAB:                    
-        diff = lab_f - admin_lab                         
-        sq   = (diff * diff).sum(axis=1)       
-        np.minimum(min_sq, sq, out=min_sq)              
- 
+    lab_f  = img_lab.reshape(-1, 3).astype(np.float32)
+    min_sq = np.full(h * w, np.inf, dtype=np.float32)
+
+    for admin_lab in _ADMIN_LINE_LAB:
+        diff = lab_f - admin_lab
+        sq   = (diff * diff).sum(axis=1)
+        np.minimum(min_sq, sq, out=min_sq)
+
     is_admin = (min_sq <= _ADMIN_DIST_THRESHOLD_SQ).reshape(h, w).astype(np.uint8)
- 
-   
+
     kernel   = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     is_admin = cv2.dilate(is_admin, kernel, iterations=1)
- 
-    return is_admin.astype(bool)   
+
+    return is_admin.astype(bool)
 
 
+# ---------------------------------------------------------------------------
+# Fungsi utama klasifikasi grid
+# ---------------------------------------------------------------------------
 def classify_grid(
     img_lab: np.ndarray,
     land: np.ndarray,
@@ -67,6 +89,16 @@ def classify_grid(
     class_count: dict[int, int] = {k: 0 for k in LEGEND}
     admin_mask = _build_admin_mask(img_lab)
 
+    # -----------------------------------------------------------------------
+    # FIX 2 – Pixel pantai: buat land mask yang sedikit dierosi agar
+    # sampling hanya mengambil pixel yang benar-benar di dalam daratan,
+    # bukan pixel tepian yang tumpang-tindih dengan laut akibat MORPH_CLOSE.
+    # land_inner dipakai untuk *sampling*, land asli tetap untuk cek rasio.
+    # -----------------------------------------------------------------------
+    _coast_k  = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                          (_COAST_ERODE_K, _COAST_ERODE_K))
+    land_inner = cv2.erode(land, _coast_k, iterations=_COAST_ERODE_ITER)
+
     ys          = range(0, h, grid)
     xs          = range(0, w, grid)
     total_cells = len(ys) * len(xs)
@@ -78,42 +110,71 @@ def classify_grid(
             if progress_callback and processed % 500 == 0:
                 progress_callback(processed, total_cells)
 
-            pm = land[y : y + grid, x : x + grid]
+            # Patch land asli dipakai hanya untuk cek rasio kehadiran daratan
+            pm       = land       [y : y + grid, x : x + grid]
+            pm_inner = land_inner [y : y + grid, x : x + grid]
 
-            land_pixels = int(np.sum(pm == 255))
+            land_pixels  = int(np.sum(pm == 255))
             total_pixels = pm.size
             if total_pixels == 0 or land_pixels / total_pixels < _LAND_RATIO_THRESHOLD:
                 continue
 
-            am_patch = admin_mask[y : y + grid, x : x + grid]  
-            usable   = (pm == 255) & ~am_patch                 
- 
-            lpx = img_lab[y : y + grid, x : x + grid][usable]
-            if len(lpx) < _MIN_CLEAN_PIXELS:              
-                continue
+            am_patch = admin_mask[y : y + grid, x : x + grid]
+            patch_lab = img_lab  [y : y + grid, x : x + grid]
 
-            lpx_f    = lpx.astype(np.float32)                             
-            diffs    = lpx_f[:, np.newaxis, :] - _ADMIN_LINE_LAB          
-            sq_dists = (diffs * diffs).sum(axis=2)                      
-            min_sq   = sq_dists.min(axis=1)                           
-            lpx      = lpx[min_sq > _ADMIN_DIST_THRESHOLD_SQ]
-            if len(lpx) == 0:
+            # -------------------------------------------------------------------
+            # FIX 1 + FIX 2 – Strategi pengambilan pixel berlapis (fallback):
+            #
+            # L1 (terbaik) : pixel land_inner  &  bukan admin spasial  +  filter warna
+            #   → pixel jauh dari pantai, jauh dari garis admin
+            # L2           : pixel land asli   &  bukan admin spasial  +  filter warna
+            #   → fallback untuk daratan sempit / pulau kecil
+            # L3           : pixel land_inner  (abaikan admin spasial) +  filter warna
+            #   → sel yang hampir seluruhnya tertutup garis admin
+            # L4 (last-resort): semua pixel land asli, tanpa filter apapun
+            #   → pulau sangat kecil / grid tepat di atas admin penuh
+            # -------------------------------------------------------------------
+
+            def _pick(mask: np.ndarray, strip_color: bool) -> np.ndarray:
+                """Ambil pixel LAB dari patch sesuai mask; opsional strip warna admin."""
+                px = patch_lab[mask]
+                if strip_color and len(px) > 0:
+                    px = _strip_admin_colors(px)
+                return px
+
+            lpx = _pick((pm_inner == 255) & ~am_patch, strip_color=True)   # L1
+
+            if len(lpx) < _MIN_CLEAN_PIXELS:
+                lpx = _pick((pm == 255) & ~am_patch, strip_color=True)     # L2
+
+            if len(lpx) < _MIN_CLEAN_PIXELS:
+                lpx = _pick((pm_inner == 255), strip_color=True)           # L3
+
+            if len(lpx) < _MIN_CLEAN_PIXELS:
+                lpx = _pick((pm == 255), strip_color=False)                # L4
+
+            if len(lpx) < _MIN_CLEAN_PIXELS:
                 continue
+            # -------------------------------------------------------------------
 
             med = np.median(lpx, axis=0)
             cls, conf = classify_lab_with_conf(med, palette)
 
             lon_c, lat_c = px2geo(x + grid / 2, y + grid / 2)
 
-            prov_name = find_province(lon_c, lat_c, processed_provs) if processed_provs else "Tidak Diketahui"
+            prov_name = (
+                find_province(lon_c, lat_c, processed_provs)
+                if processed_provs
+                else "Tidak Diketahui"
+            )
 
             if prov_name == "Luar Batas / Pesisir":
                 continue
 
             class_count[cls] += 1
 
-            lon_w, lat_n = px2geo(x,        y)
-            lon_e, lat_s = px2geo(x + grid, y + grid)
+            lon_w, lat_n = px2geo(x,         y)
+            lon_e, lat_s = px2geo(x + grid,  y + grid)
 
             t = conf
             r0, g0, b0 = LEGEND[cls]["rgb"]
@@ -163,7 +224,13 @@ def classify_grid(
     return features, class_count
 
 
-def build_geojson(features: List[dict], slug: str, image_path: str, grid_km_x: float = 0, grid_km_y: float = 0) -> dict:
+def build_geojson(
+    features: List[dict],
+    slug: str,
+    image_path: str,
+    grid_km_x: float = 0,
+    grid_km_y: float = 0,
+) -> dict:
     return {
         "type": "FeatureCollection",
         "name": f"{slug}_spi_grid",
