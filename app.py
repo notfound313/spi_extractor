@@ -174,7 +174,7 @@ georef_cfg = (
 gcps       = georef_cfg["gcps"]
 master_w, master_h = georef_cfg["master_size"]
 
-if not st.session_state.get("has_result"):
+if not st.session_state.get("has_result") and not st.session_state.get("run_process"):
     arr      = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
     h_p, w_p = arr.shape[:2]
 
@@ -220,10 +220,6 @@ if not st.session_state.get("has_result"):
         if st.button("Mulai Proses Ekstraksi", type="primary", use_container_width=True):
             st.session_state["run_process"] = True
             st.rerun()
-
-    if not st.session_state.get("run_process"):
-        st.stop()
-
 
 
 if st.session_state.get("run_process") and not st.session_state.get("has_result"):
