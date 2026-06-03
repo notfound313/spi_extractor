@@ -163,7 +163,7 @@ def classify_grid(
     return features, class_count
 
 
-def build_geojson(features: List[dict], slug: str, image_path: str) -> dict:
+def build_geojson(features: List[dict], slug: str, image_path: str, grid_km_x: float = 0, grid_km_y: float = 0) -> dict:
     return {
         "type": "FeatureCollection",
         "name": f"{slug}_spi_grid",
@@ -171,6 +171,8 @@ def build_geojson(features: List[dict], slug: str, image_path: str) -> dict:
             "description": "Grid klasifikasi SPI dengan anotasi nama daerah (provinsi)",
             "source": image_path,
             "total_grids": len(features),
+            "grid_km_x": round(grid_km_x, 4),
+            "grid_km_y": round(grid_km_y, 4),
         },
         "features": features,
     }

@@ -305,7 +305,7 @@ if st.session_state.get("run_process") and not st.session_state.get("has_result"
 
     prog_bar.progress(95, text="GeoJSON...")
     _log("Menyusun GeoJSON...")
-    geojson_obj   = build_geojson(features, slug, uploaded_file.name)
+    geojson_obj   = build_geojson(features, slug, uploaded_file.name, km_x, km_y)
     geojson_bytes = json.dumps(geojson_obj, separators=(",", ":")).encode("utf-8")
 
     prog_bar.progress(97, text="CSV...")
