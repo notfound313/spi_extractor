@@ -3,7 +3,11 @@ from typing import Callable, List, Tuple
 
 import cv2
 import numpy as np
+
+
 Px2Geo = Callable[[float, float], Tuple[float, float]]
+
+
 _MIN_LAND_AREA_PX  = 25
 _EPSILON_MAIN      = 0.0008
 _EPSILON_SMALL     = 0.0020
@@ -12,6 +16,10 @@ _MAX_RAW_PTS       = 1_500
 _SMOOTH_WINDOW     = 9
 _CLOSE_ITER_MAIN   = 3
 _CLOSE_ITER_SEA    = 2
+_LAND_CONTRACT_K    = 3
+_LAND_CONTRACT_ITER = 1
+
+
 def _smooth_contour_gaussian(cnt: np.ndarray, window: int = 9) -> np.ndarray:
     pts = cnt.reshape(-1, 2).astype(np.float32)
     n   = len(pts)
@@ -28,6 +36,8 @@ def _smooth_contour_gaussian(cnt: np.ndarray, window: int = 9) -> np.ndarray:
     sy = np.convolve(pad_y, kernel, mode="valid")[:n]
 
     return np.stack([sx, sy], axis=1).reshape(-1, 1, 2)
+
+
 def _fill_land_holes(land: np.ndarray) -> np.ndarray:
     h, w  = land.shape
     inv   = cv2.bitwise_not(land)
@@ -40,6 +50,8 @@ def _fill_land_holes(land: np.ndarray) -> np.ndarray:
     interior = flooded[1:h + 1, 1:w + 1]
     holes    = (interior != 128).astype(np.uint8) * 255
     return cv2.bitwise_or(land, holes)
+
+
 def build_sea_mask(img: np.ndarray, hsv: np.ndarray) -> np.ndarray:
     h, w = img.shape[:2]
     sea_blue  = cv2.inRange(hsv, ( 88,  12,  40), (126, 230, 255))
@@ -73,6 +85,8 @@ def build_sea_mask(img: np.ndarray, hsv: np.ndarray) -> np.ndarray:
     sea = ((flood[1:h + 1, 1:w + 1]) == 128).astype(np.uint8) * 255
     sea = cv2.morphologyEx(sea, cv2.MORPH_CLOSE, k5, iterations=2)
     return sea
+
+
 def build_land_mask(
     img: np.ndarray,
     hsv: np.ndarray,
@@ -86,9 +100,11 @@ def build_land_mask(
                             iterations=_CLOSE_ITER_MAIN)
 
     land = _fill_land_holes(land)
-
     
-    land = cv2.bitwise_and(land, cv2.bitwise_not(sea))
+    k_contract = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (_LAND_CONTRACT_K, _LAND_CONTRACT_K)
+    )
+    land = cv2.erode(land, k_contract, iterations=_LAND_CONTRACT_ITER)
 
     margin = max(2, min(h, w) // 100)
     land[:margin, :]  = 0
@@ -156,6 +172,8 @@ def extract_island_polygons(
         rings.append(ring)
 
     return rings
+
+
 def pip(lon: float, lat: float, ring: list) -> bool:
     inside = False
     j      = len(ring) - 1
